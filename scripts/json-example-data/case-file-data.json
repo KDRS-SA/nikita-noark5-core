@@ -1,0 +1,17 @@
+{
+  "mappeID": "2016/01",
+  "offentligTittel": "Public title of the test file",
+  "tittel": "Title of the test file",
+  "beskrivelse": "Description of the test file",
+  "oppbevaringsted" : [ "location 1", "location2", "location3" ],
+  "dokumentmedium": "Elektronisk arkiv",
+  "saksaar": "2017",
+  "sakssekvensnummer": "1",
+  "saksdato": "2016-10-04",
+  "administrativEnhet": "The administrative unit",
+  "saksansvarlig": "Joe the case handler",
+  "journalenhet": "The recordsmanagement unit",
+  "saksstatus": "I gang ...",
+  "utlaantDato": "2016-10-04",
+  "utlaantTil": "Doesn't make sense to have loaned on electronic records ... but just for fun ..."
+}

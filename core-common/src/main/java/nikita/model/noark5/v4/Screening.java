@@ -1,22 +1,24 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
+import nikita.model.noark5.v4.interfaces.entities.IScreeningEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
 
 import javax.persistence.*;
-import java.io.Serializable;
-import java.lang.*;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.SCREENING;
 
 @Entity
 @Table(name = "screening")
 // Enable soft delete of Screening
 @SQLDelete(sql="UPDATE screening SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class Screening implements Serializable {
+public class Screening implements IScreeningEntity, INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -24,6 +26,13 @@ public class Screening implements Serializable {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "pk_screening_id", nullable = false, insertable = true, updatable = false)
     protected Long id;
+
+    /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
+    @Audited
+    protected String systemId;
 
     /**
      * M500 - tilgangsrestriksjon n4 (JP.TGKODE)
@@ -67,35 +76,31 @@ public class Screening implements Serializable {
     @Column(name = "screening_duration")
     @Audited
     protected String screeningDuration;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Links to Series
+    @ManyToMany(mappedBy = "referenceScreening")
+    protected Set<Series> referenceSeries = new HashSet<Series>();
+    // Links to Class
+    @ManyToMany(mappedBy = "referenceScreening")
+    protected Set<Class> referenceClass = new HashSet<Class>();
+    // Links to File
+    @ManyToMany(mappedBy = "referenceScreening")
+    protected Set<File> referenceFile = new HashSet<File>();
+    // Links to Record
+    @ManyToMany(mappedBy = "referenceScreening")
+    protected Set<Record> referenceRecord = new HashSet<Record>();
+    // Links to DocumentDescription
+    @ManyToMany(mappedBy = "referenceScreening")
+    protected Set<DocumentDescription> referenceDocumentDescription = new HashSet<DocumentDescription>();
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Links to Series
-    @OneToMany(mappedBy = "referenceScreening")
-    protected Set<Series> referenceSeries = new HashSet<Series>();
-
-    // Links to Class
-    @OneToMany(mappedBy = "referenceScreening")
-    protected Set<nikita.model.noark5.v4.Class> referenceClass = new HashSet<nikita.model.noark5.v4.Class>();
-
-    // Links to File
-    @OneToMany(mappedBy = "referenceScreening")
-    protected Set<File> referenceFile = new HashSet<File>();
-
-    // Links to Record
-    @OneToMany(mappedBy = "referenceScreening")
-    protected Set<Record> referenceRecord = new HashSet<Record>();
-
-    // Links to DocumentDescription
-    @OneToMany(mappedBy = "referenceScreening")
-    protected Set<DocumentDescription> referenceDocumentDescription = new HashSet<DocumentDescription>();
 
     public Long getId() {
         return id;
@@ -103,6 +108,14 @@ public class Screening implements Serializable {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getSystemId() {
+        return systemId;
+    }
+
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
     public String getAccessRestriction() {
@@ -169,6 +182,19 @@ public class Screening implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return SCREENING;
+    }
+
     public Set<Series> getReferenceSeries() {
         return referenceSeries;
     }
@@ -177,11 +203,11 @@ public class Screening implements Serializable {
         this.referenceSeries = referenceSeries;
     }
 
-    public Set<nikita.model.noark5.v4.Class> getReferenceClass() {
+    public Set<Class> getReferenceClass() {
         return referenceClass;
     }
 
-    public void setReferenceClass(Set<nikita.model.noark5.v4.Class> referenceClass) {
+    public void setReferenceClass(Set<Class> referenceClass) {
         this.referenceClass = referenceClass;
     }
 
@@ -218,6 +244,7 @@ public class Screening implements Serializable {
                 ", screeningMetadata='" + screeningMetadata + '\'' +
                 ", screeningAuthority='" + screeningAuthority + '\'' +
                 ", accessRestriction='" + accessRestriction + '\'' +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

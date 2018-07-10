@@ -1731,7 +1731,7 @@ jQuery.extend({
     if ( !cache[ id ] ) {
       cache[ id ] = {};
 
-      // Avoids exposing jQuery metadata on plain JS objects when the object
+      // Avoids exposing jQuery administration on plain JS objects when the object
       // is serialized using JSON.stringify
       if ( !isNode ) {
         cache[ id ].toJSON = jQuery.noop;
@@ -2539,7 +2539,7 @@ jQuery.extend({
 
       if ( value === null ) {
         jQuery.removeAttr( elem, name );
-        return;
+
 
       } else if ( hooks && "set" in hooks && notxml && (ret = hooks.set( elem, value, name )) !== undefined ) {
         return ret;

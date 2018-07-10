@@ -1,12 +1,11 @@
 package no.arkivlab.hioa.nikita.webapp.spring;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import org.springframework.context.MessageSource;
-import org.springframework.context.support.ReloadableResourceBundleMessageSource;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import no.arkivlab.hioa.nikita.webapp.web.interceptor.NikitaETAGInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -20,19 +19,21 @@ import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 import org.springframework.web.servlet.i18n.SessionLocaleResolver;
 import org.springframework.web.servlet.resource.VersionResourceResolver;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
-import org.springframework.data.web.config.EnableSpringDataWebSupport;
-import org.springframework.context.annotation.Bean;
-import org.springframework.core.Ordered;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import org.thymeleaf.spring4.SpringTemplateEngine;
-import org.thymeleaf.spring4.view.ThymeleafViewResolver;
-import org.thymeleaf.templateresolver.ServletContextTemplateResolver;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @EnableWebMvc
 @EnableSpringDataWebSupport
 public class AppWebMvcConfiguration extends WebMvcConfigurerAdapter {
 
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:3000");
+    }
 
     /**
       * Used to set a suffix for the thymelaf templates under resources. All content will be under webapp
@@ -65,9 +66,8 @@ public class AppWebMvcConfiguration extends WebMvcConfigurerAdapter {
      */
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/login").setViewName("/webapp/login/loginPage");
-        registry.addViewController("/fonds").setViewName("/webapp/noark/fonds/list");
-        registry.addViewController("/").setViewName("/webapp/login/loginPage");
+        registry.addViewController("/fonds").setViewName("webapp/noark/fonds/list");
+        registry.addViewController("/gui").setViewName("webapp/login/loginPage");
 
         registry.setOrder(Ordered.HIGHEST_PRECEDENCE);
     }
@@ -78,6 +78,7 @@ public class AppWebMvcConfiguration extends WebMvcConfigurerAdapter {
      *  formatted output.
      *  However the client should be using Accept: application/json or application/xml when connecting
      */
+
     @Override
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters){
 
@@ -85,6 +86,8 @@ public class AppWebMvcConfiguration extends WebMvcConfigurerAdapter {
         if (jsonConverterFound.isPresent()) {
             final AbstractJackson2HttpMessageConverter converter = (AbstractJackson2HttpMessageConverter) jsonConverterFound.get();
             converter.getObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+            // Convert timestamps to readable text strings
+            converter.getObjectMapper().configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
             converter.getObjectMapper().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         }
         final Optional<HttpMessageConverter<?>> xmlConverterFound = converters.stream().filter(c -> c instanceof MappingJackson2XmlHttpMessageConverter).findFirst();
@@ -107,6 +110,9 @@ public class AppWebMvcConfiguration extends WebMvcConfigurerAdapter {
     @Override
     public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
         configurer.defaultContentType(MediaType.APPLICATION_JSON_UTF8);
+        // Just here as it might be needed when we consume content
+        //configurer.mediaType("application/vnd.noark5-v4+json;charset=UTF-8", MediaType.APPLICATION_JSON_UTF8);
+        //configurer.mediaType("application/vnd.noark5-v4+json", MediaType.APPLICATION_JSON);
     }
 
     /**
@@ -163,6 +169,7 @@ public class AppWebMvcConfiguration extends WebMvcConfigurerAdapter {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(localeChangeInterceptor());
+        registry.addInterceptor(new NikitaETAGInterceptor());
     }
 
 }

@@ -1,17 +1,22 @@
 package nikita.model.noark5.v4;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.*;
+import nikita.model.noark5.v4.interfaces.entities.INoarkGeneralEntity;
+import nikita.util.deserialisers.FileDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 import javax.persistence.*;
-import java.io.Serializable;
-import java.lang.*;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.FILE;
 
 @Entity
 @Table(name = "file")
@@ -19,8 +24,11 @@ import java.util.Set;
 // Enable soft delete of File
 @SQLDelete(sql="UPDATE file SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property="id")
-public class File implements Serializable {
+@Indexed(index = "file")
+@JsonDeserialize(using = FileDeserializer.class)
+public class File implements INoarkGeneralEntity, IDocumentMedium, IStorageLocation, IKeyword, IClassified,
+        IDisposal, IScreening, IComment, ICrossReference
+{
 
     private static final long serialVersionUID = 1L;
 
@@ -32,8 +40,9 @@ public class File implements Serializable {
     /**
      * M001 - systemID (xs:string)
      */
-    @Column(name = "system_id")
+    @Column(name = "system_id", unique=true)
     @Audited
+    @Field
     protected String systemId;
 
     /**
@@ -41,6 +50,7 @@ public class File implements Serializable {
      */
     @Column(name = "file_id")
     @Audited
+    @Field
     protected String fileId;
 
     /**
@@ -48,6 +58,7 @@ public class File implements Serializable {
      */
     @Column(name = "title")
     @Audited
+    @Field
     protected String title;
 
     /**
@@ -55,6 +66,7 @@ public class File implements Serializable {
      */
     @Column(name = "official_title")
     @Audited
+    @Field
     protected String officialTitle;
 
     /**
@@ -62,6 +74,7 @@ public class File implements Serializable {
      */
     @Column(name = "description")
     @Audited
+    @Field
     protected String description;
 
     /**
@@ -77,6 +90,7 @@ public class File implements Serializable {
     @Column(name = "created_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date createdDate;
 
     /**
@@ -92,6 +106,7 @@ public class File implements Serializable {
     @Column(name = "finalised_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date finalisedDate;
 
     /**
@@ -100,77 +115,75 @@ public class File implements Serializable {
     @Column(name = "finalised_by")
     @Audited
     protected String finalisedBy;
-
-    // Used for soft delete.
-    @Column(name = "deleted")
-    @Audited
-    private Boolean deleted;
-
+    @Field
     @Column(name = "owned_by")
     @Audited
     protected String ownedBy;
-
+    @Version
+    @Column(name = "version")
+    protected Long version;
     // Link to StorageLocation
-    @ManyToOne
-    @JoinColumn(name = "file_storage_location_id", referencedColumnName = "pk_storage_location_id")
-    protected StorageLocation referenceStorageLocation;
-
+    @ManyToMany (cascade=CascadeType.ALL)
+    @JoinTable(name = "file_storage_location", joinColumns = @JoinColumn(name = "f_pk_file_id",
+            referencedColumnName = "pk_file_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_storage_location_id",
+            referencedColumnName = "pk_storage_location_id"))
+    protected Set<StorageLocation> referenceStorageLocation = new HashSet<StorageLocation>();
     // Links to Keywords
-    @ManyToMany
-    @JoinTable(name = "file_keyword", joinColumns = @JoinColumn(name = "f_pk_file_id", referencedColumnName = "pk_file_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_keyword_id", referencedColumnName = "pk_keyword_id"))
+    @ManyToMany(cascade=CascadeType.ALL)
+    @JoinTable(name = "file_keyword", joinColumns = @JoinColumn(name = "f_pk_file_id",
+            referencedColumnName = "pk_file_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_keyword_id",
+            referencedColumnName = "pk_keyword_id"))
     protected Set<Keyword> referenceKeyword = new HashSet<Keyword>();
-
     // Link to parent File
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     protected File referenceParentFile;
-
     // Links to child Files
     @OneToMany(mappedBy = "referenceParentFile")
     protected Set<File> referenceChildFile = new HashSet<File>();
-
     // Link to Series
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_series_id", referencedColumnName = "pk_series_id")
     protected Series referenceSeries;
-
     // Link to Class
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_class_id", referencedColumnName = "pk_class_id")
     protected Class referenceClass;
-
     // Links to Records
     @OneToMany(mappedBy = "referenceFile")
     protected Set<Record> referenceRecord = new HashSet<Record>();
-
-    // Links to Classified
-    @ManyToOne
-    @JoinColumn(name = "file_classified_id", referencedColumnName = "pk_classified_id")
-    protected Classified referenceClassified;
-
     // Links to Comments
-    @ManyToMany
-    @JoinTable(name = "file_comment", joinColumns = @JoinColumn(name = "f_pk_file_id", referencedColumnName = "pk_file_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_comment_id", referencedColumnName = "pk_comment_id"))
+    @ManyToMany (cascade=CascadeType.PERSIST)
+    @JoinTable(name = "file_comment", joinColumns = @JoinColumn(name = "f_pk_file_id",
+            referencedColumnName = "pk_file_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_comment_id",
+            referencedColumnName = "pk_comment_id"))
     protected Set<Comment> referenceComment = new HashSet<Comment>();
-
+    // Links to Classified
+    @ManyToOne (cascade=CascadeType.PERSIST)
+    @JoinColumn(name = "file_classified_id", referencedColumnName = "pk_classified_id")
+    @JsonIgnore
+    protected Classified referenceClassified;
     // Link to Disposal
-    @ManyToOne
+    @ManyToOne (cascade=CascadeType.PERSIST)
     @JoinColumn(name = "file_disposal_id", referencedColumnName = "pk_disposal_id")
     protected Disposal referenceDisposal;
-
     // Link to Screening
-    @ManyToOne
+    @ManyToOne (cascade=CascadeType.PERSIST)
     @JoinColumn(name = "file_screening_id", referencedColumnName = "pk_screening_id")
     protected Screening referenceScreening;
-
-    @OneToOne(mappedBy = "referenceToFile")
-    protected CrossReference referenceToCrossReference;
-
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @OneToMany(mappedBy = "referenceFile")
+    protected Set<CrossReference> referenceCrossReference;
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    @Field
+    private Boolean deleted;
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getSystemId() {
@@ -269,14 +282,57 @@ public class File implements Serializable {
         this.ownedBy = ownedBy;
     }
 
-
-    public StorageLocation getReferenceStorageLocation() {
-        return referenceStorageLocation;
+    public Long getVersion() {
+        return version;
     }
 
-    public void setReferenceStorageLocation(
-            StorageLocation referenceStorageLocation) {
-        this.referenceStorageLocation = referenceStorageLocation;
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return FILE;
+    }
+
+    @Override
+    public Classified getReferenceClassified() {
+        return referenceClassified;
+    }
+
+    @Override
+    public void setReferenceClassified(Classified referenceClassified) {
+        this.referenceClassified = referenceClassified;
+    }
+
+    @Override
+    public Disposal getReferenceDisposal() {
+        return referenceDisposal;
+    }
+
+    @Override
+    public void setReferenceDisposal(Disposal referenceDisposal) {
+        this.referenceDisposal = referenceDisposal;
+    }
+
+    @Override
+    public Screening getReferenceScreening() {
+        return referenceScreening;
+    }
+
+    @Override
+    public void setReferenceScreening(Screening referenceScreening) {
+        this.referenceScreening = referenceScreening;
+    }
+
+    @Override
+    public Set<StorageLocation> getReferenceStorageLocation() {
+        return null;
+    }
+
+    @Override
+    public void setReferenceStorageLocation(Set<StorageLocation> storageLocations) {
+
     }
 
     public Set<Keyword> getReferenceKeyword() {
@@ -328,14 +384,6 @@ public class File implements Serializable {
     }
 
 
-    public Classified getReferenceClassified() {
-        return referenceClassified;
-    }
-
-    public void setReferenceClassified(Classified referenceClassified) {
-        this.referenceClassified = referenceClassified;
-    }
-
     public Set<Comment> getReferenceComment() {
         return referenceComment;
     }
@@ -344,28 +392,14 @@ public class File implements Serializable {
         this.referenceComment = referenceComment;
     }
 
-    public Disposal getReferenceDisposal() {
-        return referenceDisposal;
+    @Override
+    public Set<CrossReference> getReferenceCrossReference() {
+        return referenceCrossReference;
     }
 
-    public void setReferenceDisposal(Disposal referenceDisposal) {
-        this.referenceDisposal = referenceDisposal;
-    }
-
-    public Screening getReferenceScreening() {
-        return referenceScreening;
-    }
-
-    public void setReferenceScreening(Screening referenceScreening) {
-        this.referenceScreening = referenceScreening;
-    }
-
-    public CrossReference getReferenceToCrossReference() {
-        return referenceToCrossReference;
-    }
-
-    public void setReferenceToCrossReference(CrossReference referenceToCrossReference) {
-        this.referenceToCrossReference = referenceToCrossReference;
+    @Override
+    public void setReferenceCrossReference(Set<CrossReference> referenceCrossReference) {
+        this.referenceCrossReference = referenceCrossReference;
     }
 
     @Override
@@ -381,6 +415,7 @@ public class File implements Serializable {
                 ", title='" + title + '\'' +
                 ", fileId='" + fileId + '\'' +
                 ", systemId='" + systemId + '\'' +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

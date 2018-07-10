@@ -1,19 +1,21 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.ICrossReferenceEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
 
 import javax.persistence.*;
-import java.io.Serializable;
-import java.lang.*;
+
+import static nikita.config.N5ResourceMappings.CROSS_REFERENCE;
 
 @Entity
 @Table(name = "cross_reference")
 // Enable soft delete of CrossReference
 @SQLDelete(sql="UPDATE cross_reference SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class CrossReference implements Serializable {
+public class CrossReference implements ICrossReferenceEntity, INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -22,44 +24,50 @@ public class CrossReference implements Serializable {
     @Column(name = "pk_cross_reference_id", nullable = false, insertable = true, updatable = false)
     protected Long id;
 
-    // Used for soft delete.
-    @Column(name = "deleted")
+    /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
     @Audited
-    private Boolean deleted;
+    protected String systemId;
 
     @Column(name = "owned_by")
     @Audited
     protected String ownedBy;
-
-    /** M219 - referanseTilKlasse (xs:string) **/
-    @OneToOne
-    @JoinColumn(name="class_system_id")
-    protected Class referenceToClass;
-
-    /** M210 - referanseTilMappe (xs:string) **/
-    @OneToOne
-    @JoinColumn(name="file_system_id")
-    protected File referenceToFile;
-
-    /** M212 - referanseTilRegistrering (xs:string) **/
-    @OneToOne
-    @JoinColumn(name="record_system_id")
-    protected Record referenceToRecord;
-
+    /** M219 - referanseTilKlasse (xs:string)
+     * points to systemId of the referenced Class
+     **/
+    @Column(name="class_system_id")
+    protected String referenceToClass;
+    /** M210 - referanseTilMappe (xs:string)
+     * points to systemId of the referenced File
+     **/
+    @Column(name="file_system_id")
+    protected String referenceToFile;
+    /** M212 - referanseTilRegistrering (xs:string)
+     * points to systemId of the referenced Record
+     **/
+    @Column(name="record_system_id")
+    protected String referenceToRecord;
+    @Version
+    @Column(name = "version")
+    protected Long version;
     // Link to Class
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cross_reference_class_id", referencedColumnName = "pk_class_id")
     protected Class referenceClass;
-
     // Link to File
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cross_reference_file_id", referencedColumnName = "pk_file_id")
     protected File referenceFile;
-
-    // Link to Record
-    @ManyToOne
-    @JoinColumn(name = "cross_reference_record_id", referencedColumnName = "pk_record_id")
-    protected Record referenceRecord;
+    // Link to BasicRecord
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cross_reference_basic_record_id", referencedColumnName = "pk_record_id")
+    protected Record referenceBasicRecord;
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    private Boolean deleted;
 
     public Long getId() {
         return id;
@@ -67,6 +75,14 @@ public class CrossReference implements Serializable {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getSystemId() {
+        return systemId;
+    }
+
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
     public Boolean getDeleted() {
@@ -85,27 +101,43 @@ public class CrossReference implements Serializable {
         this.ownedBy = ownedBy;
     }
 
-    public Class getReferenceToClass() {
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return CROSS_REFERENCE;
+    }
+
+    @Override
+    public String getReferenceToClass() {
         return referenceToClass;
     }
 
-    public void setReferenceToClass(Class referenceToClass) {
+    public void setReferenceToClass(String referenceToClass) {
         this.referenceToClass = referenceToClass;
     }
 
-    public File getReferenceToFile() {
+    @Override
+    public String getReferenceToFile() {
         return referenceToFile;
     }
 
-    public void setReferenceToFile(File referenceToFile) {
+    public void setReferenceToFile(String referenceToFile) {
         this.referenceToFile = referenceToFile;
     }
 
-    public Record getReferenceToRecord() {
+    @Override
+    public String getReferenceToRecord() {
         return referenceToRecord;
     }
 
-    public void setReferenceToRecord(Record referenceToRecord) {
+    public void setReferenceToRecord(String referenceToRecord) {
         this.referenceToRecord = referenceToRecord;
     }
 
@@ -125,11 +157,24 @@ public class CrossReference implements Serializable {
         this.referenceFile = referenceFile;
     }
 
-    public Record getReferenceRecord() {
-        return referenceRecord;
+    public Record getReferenceBasicRecord() {
+        return referenceBasicRecord;
     }
 
-    public void setReferenceRecord(Record referenceRecord) {
-        this.referenceRecord = referenceRecord;
+    public void setReferenceBasicRecord(Record referenceBasicRecord) {
+        this.referenceBasicRecord = referenceBasicRecord;
+    }
+
+    @Override
+    public String toString() {
+        return "CrossReference{" +
+                "id=" + id +
+                ", deleted=" + deleted +
+                ", ownedBy='" + ownedBy + '\'' +
+                ", referenceToClass='" + referenceToClass + '\'' +
+                ", referenceToFile='" + referenceToFile + '\'' +
+                ", referenceToRecord='" + referenceToRecord + '\'' +
+                ", version='" + version + '\'' +
+                '}';
     }
 }

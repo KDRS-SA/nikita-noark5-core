@@ -1,14 +1,18 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.IClassifiedEntity;
+import nikita.model.noark5.v4.interfaces.entities.INikitaEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
 
 import javax.persistence.*;
-import java.lang.*;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.CLASSIFIED;
 
 /**
  * Created by tsodring on 4/10/16.
@@ -19,7 +23,7 @@ import java.util.Set;
 // Enable soft delete of Classified
 @SQLDelete(sql="UPDATE classified SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class Classified {
+public class Classified implements INikitaEntity, INoarkSystemIdEntity, IClassifiedEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -27,6 +31,13 @@ public class Classified {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "pk_classified_id", nullable = false, insertable = true, updatable = false)
     protected Long id;
+
+    /**
+     * systemID (xs:string). Not part of Noark standard. Added so access via systemId is consistent
+     */
+    @Column(name = "system_id", unique=true)
+    @Audited
+    protected String systemId;
 
     /** M506 - gradering (xs:string) **/
     @Column(name="classification")
@@ -53,14 +64,13 @@ public class Classified {
     @Audited
     protected String classificationDowngradedBy;
 
-    // Used for soft delete.
-    @Column(name = "deleted")
-    @Audited
-    private Boolean deleted;
-
     @Column(name = "owned_by")
     @Audited
     protected String ownedBy;
+
+    @Version
+    @Column(name = "version")
+    protected Long version;
 
     // Links to Series
     @OneToMany(mappedBy = "referenceClassified")
@@ -82,12 +92,27 @@ public class Classified {
     @OneToMany(mappedBy = "referenceClassified")
     protected Set<DocumentDescription> referenceDocumentDescription = new HashSet<DocumentDescription>();
 
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    private Boolean deleted;
+
     public Long getId() {
         return id;
     }
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    @Override
+    public String getSystemId() {
+        return systemId;
+    }
+
+    @Override
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
     public String getClassification() {
@@ -146,6 +171,19 @@ public class Classified {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return CLASSIFIED;
+    }
+
     public Set<Series> getReferenceSeries() {
         return referenceSeries;
     }
@@ -195,6 +233,7 @@ public class Classified {
                 ", classificationBy='" + classificationBy + '\'' +
                 ", classificationDowngradedDate=" + classificationDowngradedDate +
                 ", classificationDowngradedBy='" + classificationDowngradedBy + '\'' +
+                ", version='" + version + '\'' +
                 '}';
     }
 }

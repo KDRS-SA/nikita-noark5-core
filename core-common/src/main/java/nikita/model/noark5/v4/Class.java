@@ -1,30 +1,35 @@
 package nikita.model.noark5.v4;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.IClassified;
+import nikita.model.noark5.v4.interfaces.ICrossReference;
+import nikita.model.noark5.v4.interfaces.IDisposal;
+import nikita.model.noark5.v4.interfaces.IScreening;
+import nikita.model.noark5.v4.interfaces.entities.INoarkGeneralEntity;
+import nikita.util.deserialisers.ClassDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.CLASS;
 
 @Entity
 @Table(name = "class")
 // Enable soft delete of Class
 @SQLDelete(sql="UPDATE class SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property="id")
-public class Class implements Serializable {
+@Indexed(index = "class")
+@JsonDeserialize(using = ClassDeserializer.class)
+public class Class implements INoarkGeneralEntity, IDisposal, IScreening, IClassified, ICrossReference {
 
     private static final long serialVersionUID = 1L;
-
-    public Class() {
-        super();
-    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -34,8 +39,9 @@ public class Class implements Serializable {
     /**
      * M001 - systemID (xs:string)
      */
-    @Column(name = "system_id")
+    @Column(name = "system_id", unique=true)
     @Audited
+    @Field
     protected String systemId;
 
     /**
@@ -43,6 +49,7 @@ public class Class implements Serializable {
      */
     @Column(name = "class_id")
     @Audited
+    @Field
     protected String classId;
 
     /**
@@ -50,6 +57,7 @@ public class Class implements Serializable {
      */
     @Column(name = "title")
     @Audited
+    @Field
     protected String title;
 
     /**
@@ -57,6 +65,7 @@ public class Class implements Serializable {
      */
     @Column(name = "description")
     @Audited
+    @Field
     protected String description;
 
     /**
@@ -65,6 +74,7 @@ public class Class implements Serializable {
     @Column(name = "created_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date createdDate;
 
     /**
@@ -72,6 +82,7 @@ public class Class implements Serializable {
      */
     @Column(name = "created_by")
     @Audited
+    @Field
     protected String createdBy;
 
     /**
@@ -80,6 +91,7 @@ public class Class implements Serializable {
     @Column(name = "finalised_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date finalisedDate;
 
     /**
@@ -87,29 +99,32 @@ public class Class implements Serializable {
      */
     @Column(name = "finalised_by")
     @Audited
+    @Field
     protected String finalisedBy;
-
-    // Used for soft delete.
-    @Column(name = "deleted")
-    @Audited
-    private Boolean deleted;
 
     @Column(name = "owned_by")
     @Audited
+    @Field
     protected String ownedBy;
+
+    @Version
+    @Column(name = "version")
+    protected Long version;
 
     // Links to Keywords
     @ManyToMany
-    @JoinTable(name = "class_keyword", joinColumns = @JoinColumn(name = "f_pk_class_id", referencedColumnName = "pk_class_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_keyword_id", referencedColumnName = "pk_keyword_id"))
+    @JoinTable(name = "class_keyword", joinColumns = @JoinColumn(name = "f_pk_class_id",
+            referencedColumnName = "pk_class_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_keyword_id",
+            referencedColumnName = "pk_keyword_id"))
     protected Set<Keyword> referenceKeyword = new HashSet<Keyword>();
 
     // Link to ClassificationSystem
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_classification_system_id", referencedColumnName = "pk_classification_system_id")
     protected ClassificationSystem referenceClassificationSystem;
 
     // Link to parent Class
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     protected Class referenceParentClass;
 
     // Links to child Classes
@@ -125,28 +140,36 @@ public class Class implements Serializable {
     protected Set<Record> referenceRecord = new HashSet<Record>();
 
     // Links to Classified
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "class_classified_id", referencedColumnName = "pk_classified_id")
     protected Classified referenceClassified;
 
     // Link to Disposal
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "class_disposal_id", referencedColumnName = "pk_disposal_id")
     protected Disposal referenceDisposal;
-
     // Link to Screening
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "class_screening_id", referencedColumnName = "pk_screening_id")
     protected Screening referenceScreening;
+    @OneToMany(mappedBy = "referenceClass")
+    protected Set<CrossReference> referenceCrossReference;
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    @Field
+    private Boolean deleted;
 
-    @OneToOne(mappedBy = "referenceToClass")
-    protected CrossReference referenceToCrossReference;
+    public Class() {
+        super();
+    }
+
+    public Long getId() {
+        return id;
+    }
 
     public void setId(Long id) {
         this.id = id;
-    }
-    public Long getId() {
-        return id;
     }
 
     public String getSystemId() {
@@ -229,6 +252,19 @@ public class Class implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return CLASS;
+    }
+
     public Set<Keyword> getReferenceKeyword() {
         return referenceKeyword;
     }
@@ -278,37 +314,44 @@ public class Class implements Serializable {
         this.referenceRecord = referenceRecord;
     }
 
+    @Override
     public Classified getReferenceClassified() {
-        return referenceClassified;
+        return null;
     }
 
-    public void setReferenceClassified(Classified referenceClassified) {
-        this.referenceClassified = referenceClassified;
+    @Override
+    public void setReferenceClassified(Classified classified) {
+
     }
 
+    @Override
     public Disposal getReferenceDisposal() {
-        return referenceDisposal;
+        return null;
     }
 
-    public void setReferenceDisposal(Disposal referenceDisposal) {
-        this.referenceDisposal = referenceDisposal;
+    @Override
+    public void setReferenceDisposal(Disposal disposal) {
+
     }
 
-
+    @Override
     public Screening getReferenceScreening() {
-        return referenceScreening;
+        return null;
     }
 
-    public void setReferenceScreening(Screening referenceScreening) {
-        this.referenceScreening = referenceScreening;
+    @Override
+    public void setReferenceScreening(Screening screening) {
+
     }
 
-    public CrossReference getReferenceToCrossReference() {
-        return referenceToCrossReference;
+    @Override
+    public Set<CrossReference> getReferenceCrossReference() {
+        return referenceCrossReference;
     }
 
-    public void setReferenceToCrossReference(CrossReference referenceToCrossReference) {
-        this.referenceToCrossReference = referenceToCrossReference;
+    @Override
+    public void setReferenceCrossReference(Set<CrossReference> referenceCrossReference) {
+        this.referenceCrossReference = referenceCrossReference;
     }
 
     @Override
@@ -323,6 +366,7 @@ public class Class implements Serializable {
                 ", classId='" + classId + '\'' +
                 ", systemId='" + systemId + '\'' +
                 ", id=" + id +
+                ", version='" + version + '\'' +
                 '}';
     }
 }

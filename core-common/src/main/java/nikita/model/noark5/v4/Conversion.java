@@ -1,5 +1,6 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
@@ -7,12 +8,14 @@ import org.hibernate.envers.Audited;
 import javax.persistence.*;
 import java.util.Date;
 
+import static nikita.config.N5ResourceMappings.CONVERSION;
+
 @Entity
 @Table(name = "conversion")
 // Enable soft delete of Conversion
 @SQLDelete(sql="UPDATE conversion SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class Conversion {
+public class Conversion implements INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -20,6 +23,13 @@ public class Conversion {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "pk_comment_id", nullable = false, insertable = true, updatable = false)
     protected Long id;
+
+    /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
+    @Audited
+    protected String systemId;
 
     /** M615 - konvertertDato (xs:dateTime) */
     @Column(name = "converted_date")
@@ -50,20 +60,20 @@ public class Conversion {
     @Column(name = "conversion_comment")
     @Audited
     protected String conversionComment;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Link to DocumentObject
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversion_document_object_id", referencedColumnName = "pk_document_object_id")
+    protected DocumentObject referenceDocumentObject;
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Link to DocumentObject
-    @ManyToOne
-    @JoinColumn(name = "conversion_document_object_id", referencedColumnName = "pk_document_object_id")
-    protected DocumentObject referenceDocumentObject;
 
     public Long getId() {
         return id;
@@ -71,6 +81,14 @@ public class Conversion {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getSystemId() {
+        return systemId;
+    }
+
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
     public Date getConvertedDate() {
@@ -137,6 +155,19 @@ public class Conversion {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return CONVERSION;
+    }
+
     public DocumentObject getReferenceDocumentObject() {
         return referenceDocumentObject;
     }
@@ -155,6 +186,7 @@ public class Conversion {
                 ", convertedToFormat='" + convertedToFormat + '\'' +
                 ", conversionTool='" + conversionTool + '\'' +
                 ", conversionComment='" + conversionComment + '\'' +
+                ", version='" + version + '\'' +
                 '}';
     }
 }

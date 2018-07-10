@@ -1,8 +1,12 @@
 package no.arkivlab.hioa.nikita.webapp.service.impl;
 
 import nikita.model.noark5.v4.DocumentDescription;
+import nikita.model.noark5.v4.DocumentObject;
 import nikita.repository.n5v4.IDocumentDescriptionRepository;
 import no.arkivlab.hioa.nikita.webapp.service.interfaces.IDocumentDescriptionService;
+import no.arkivlab.hioa.nikita.webapp.util.exceptions.NoarkEntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,41 +15,72 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+
+import static nikita.config.Constants.INFO_CANNOT_FIND_OBJECT;
 
 @Service
 @Transactional
 public class DocumentDescriptionService implements IDocumentDescriptionService {
 
+
+    private static final Logger logger = LoggerFactory.getLogger(FileService.class);
+
+    @Autowired
+    DocumentObjectService documentObjectService;
+
     @Autowired
     IDocumentDescriptionRepository documentDescriptionRepository;
+
+    @Autowired
+    EntityManager entityManager;
+
+    //@Value("${nikita-noark5-core.pagination.maxPageSize}")
+    Integer maxPageSize = new Integer(10);
 
     public DocumentDescriptionService() {
     }
 
     // All CREATE operations
+
+    @Override
+    public DocumentObject createDocumentObjectAssociatedWithDocumentDescription(String documentDescriptionSystemId, DocumentObject documentObject) {
+        DocumentObject persistedDocumentObject = null;
+        DocumentDescription documentDescription = documentDescriptionRepository.findBySystemId(documentDescriptionSystemId);
+        if (documentDescription == null) {
+            String info = INFO_CANNOT_FIND_OBJECT + " DocumentDescription, using documentDescriptionSystemId " + documentDescriptionSystemId;
+            logger.info(info) ;
+            throw new NoarkEntityNotFoundException(info);
+        }
+        else {
+            documentObject.setReferenceDocumentDescription(documentDescription);
+            Set <DocumentObject> documentObjects = documentDescription.getReferenceDocumentObject();
+            documentObjects.add(documentObject);
+            persistedDocumentObject = documentObjectService.save(documentObject);
+        }
+        return persistedDocumentObject;
+    }
+
     public DocumentDescription save(DocumentDescription documentDescription){
-        String username = (String) SecurityContextHolder.getContext().getAuthentication().getName();
-
-
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         documentDescription.setSystemId(UUID.randomUUID().toString());
         documentDescription.setCreatedDate(new Date());
         documentDescription.setOwnedBy(username);
         documentDescription.setCreatedBy(username);
         documentDescription.setDeleted(false);
-
-        // Have to handle referenceToFonds. If it is not set do not allow persisit
-        // throw illegalstructure exception
-
-        // How do handle referenceToPrecusor? Update the entire object?? No patch?
-
         return documentDescriptionRepository.save(documentDescription);
     }
 
     // All READ operations
-    public Iterable<DocumentDescription> findAll() {
+    public List<DocumentDescription> findAll() {
         return documentDescriptionRepository.findAll();
     }
 
@@ -299,7 +334,27 @@ public class DocumentDescriptionService implements IDocumentDescriptionService {
     }
 
 
-    // All DELETE operations
+    // All READ operations
+    @Override
+    public List<DocumentDescription> findDocumentDescriptionByOwnerPaginated(Integer top, Integer skip) {
 
+        if (top == null || top > maxPageSize) {
+            top = maxPageSize;
+        }
+        if (skip == null) {
+            skip = 0;
+        }
 
+        String loggedInUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<DocumentDescription> criteriaQuery = criteriaBuilder.createQuery(DocumentDescription.class);
+        Root<DocumentDescription> from = criteriaQuery.from(DocumentDescription.class);
+        CriteriaQuery<DocumentDescription> select = criteriaQuery.select(from);
+
+        criteriaQuery.where(criteriaBuilder.equal(from.get("ownedBy"), loggedInUser));
+        TypedQuery<DocumentDescription> typedQuery = entityManager.createQuery(select);
+        typedQuery.setFirstResult(skip);
+        typedQuery.setMaxResults(maxPageSize);
+        return typedQuery.getResultList();
+    }
 }

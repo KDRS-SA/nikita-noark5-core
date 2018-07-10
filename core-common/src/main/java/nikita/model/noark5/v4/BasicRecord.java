@@ -1,12 +1,20 @@
 package nikita.model.noark5.v4;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.*;
+import nikita.model.noark5.v4.interfaces.entities.INoarkTitleDescriptionEntity;
+import nikita.util.deserialisers.BasicRecordDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
+
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.BASIC_RECORD;
 
 @Entity
 @Table(name = "basic_record")
@@ -14,7 +22,10 @@ import java.util.Set;
 // Enable soft delete of BasicRecord
 @SQLDelete(sql="UPDATE basic_record SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class BasicRecord extends Record implements Serializable {
+@Indexed(index = "basic_record")
+@JsonDeserialize(using = BasicRecordDeserializer.class)
+public class BasicRecord extends Record implements IDocumentMedium, INoarkTitleDescriptionEntity,
+        IStorageLocation, IKeyword, IComment, ICrossReference, IAuthor {
 
     private static final long serialVersionUID = 1L;
 
@@ -23,6 +34,7 @@ public class BasicRecord extends Record implements Serializable {
      */
     @Column(name = "record_id")
     @Audited
+    @Field
     protected String recordId;
 
     /**
@@ -30,6 +42,7 @@ public class BasicRecord extends Record implements Serializable {
      */
     @Column(name = "title")
     @Audited
+    @Field
     protected String title;
 
     /**
@@ -44,6 +57,7 @@ public class BasicRecord extends Record implements Serializable {
      */
     @Column(name = "description")
     @Audited
+    @Field
     protected String description;
 
     /**
@@ -51,36 +65,44 @@ public class BasicRecord extends Record implements Serializable {
      */
     @Column(name = "document_medium")
     @Audited
+    @Field
     protected String documentMedium;
-
+    @Column(name = "owned_by")
+    @Audited
+    @Field
+    protected String ownedBy;
+    // Link to StorageLocation
+    @ManyToMany (cascade=CascadeType.ALL)
+    @JoinTable(name = "basic_record_storage_location", joinColumns = @JoinColumn(name = "f_pk_basic_record_id",
+            referencedColumnName = "pk_record_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_storage_location_id",
+            referencedColumnName = "pk_storage_location_id"))
+    protected Set<StorageLocation> referenceStorageLocation = new HashSet<StorageLocation>();
+    // Links to Keywords
+    @ManyToMany
+    @JoinTable(name = "basic_record_keyword", joinColumns = @JoinColumn(name = "f_pk_record_id",
+            referencedColumnName = "pk_record_id"),
+            inverseJoinColumns = @JoinColumn(name = "f_pk_keyword_id", referencedColumnName = "pk_keyword_id"))
+    protected Set<Keyword> referenceKeyword = new HashSet<Keyword>();
+    // Links to Authors
+    @ManyToMany
+    @JoinTable(name = "basic_record_author", joinColumns = @JoinColumn(name = "f_pk_record_id",
+            referencedColumnName = "pk_record_id"),
+            inverseJoinColumns = @JoinColumn(name = "f_pk_author_id", referencedColumnName = "pk_author_id"))
+    protected Set<Author> referenceAuthor = new HashSet<Author>();
+    // Links to Comments
+    @ManyToMany
+    @JoinTable(name = "basic_record_comment", joinColumns = @JoinColumn(name = "f_pk_record_id",
+            referencedColumnName = "pk_record_id"),
+            inverseJoinColumns = @JoinColumn(name = "f_pk_comment_id", referencedColumnName = "pk_comment_id"))
+    protected Set<Comment> referenceComment = new HashSet<Comment>();
+    // Links to CrossReference
+    @OneToMany(mappedBy = "referenceBasicRecord")
+    protected Set<CrossReference> referenceCrossReference;
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
+    @Field
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Link to StorageLocation
-    @ManyToOne
-    @JoinColumn(name = "basic_record_storage_location_id", referencedColumnName = "pk_storage_location_id")
-    protected StorageLocation referenceStorageLocation;
-
-    // Links to Keywords
-    @ManyToMany
-    @JoinTable(name = "basic_record_keyword", joinColumns = @JoinColumn(name = "f_pk_record_id", referencedColumnName = "pk_record_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_keyword_id", referencedColumnName = "pk_keyword_id"))
-    protected Set<Keyword> referenceKeyword = new HashSet<Keyword>();
-
-    // Links to Authors
-    @ManyToMany
-    @JoinTable(name = "basic_record_author", joinColumns = @JoinColumn(name = "f_pk_record_id", referencedColumnName = "pk_record_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_author_id", referencedColumnName = "pk_author_id"))
-    protected Set<Author> referenceAuthor = new HashSet<Author>();
-
-    // Links to Comments
-    @ManyToMany
-    @JoinTable(name = "basic_record_comment", joinColumns = @JoinColumn(name = "f_pk_record_id", referencedColumnName = "pk_record_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_comment_id", referencedColumnName = "pk_comment_id"))
-    protected Set<Comment> referenceComment = new HashSet<Comment>();
 
     public String getRecordId() {
         return recordId;
@@ -138,12 +160,15 @@ public class BasicRecord extends Record implements Serializable {
         this.ownedBy = ownedBy;
     }
 
-    public StorageLocation getReferenceStorageLocation() {
-        return referenceStorageLocation;
+    @Override
+    public String getBaseTypeName() {
+        return BASIC_RECORD;
     }
 
-    public void setReferenceStorageLocation(
-            StorageLocation referenceStorageLocation) {
+    @Override
+    public Set<StorageLocation> getReferenceStorageLocation() {return referenceStorageLocation;}
+
+    public void setReferenceStorageLocation(Set<StorageLocation> referenceStorageLocation) {
         this.referenceStorageLocation = referenceStorageLocation;
     }
 
@@ -169,6 +194,15 @@ public class BasicRecord extends Record implements Serializable {
 
     public void setReferenceComment(Set<Comment> referenceComment) {
         this.referenceComment = referenceComment;
+    }
+
+    @Override
+    public Set<CrossReference> getReferenceCrossReference() {
+        return referenceCrossReference;
+    }
+
+    public void setReferenceCrossReference(Set<CrossReference> referenceCrossReference) {
+        this.referenceCrossReference = referenceCrossReference;
     }
 
     @Override

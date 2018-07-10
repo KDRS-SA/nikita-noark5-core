@@ -1,8 +1,7 @@
 package no.arkivlab.hioa.nikita.webapp.service;
 
-
+import no.arkivlab.hioa.nikita.webapp.model.security.User;
 import no.arkivlab.hioa.nikita.webapp.util.exceptions.UsernameExistsException;
-import nikita.model.user.User;
 
 public interface IUserService {
 

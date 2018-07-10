@@ -1,14 +1,20 @@
 package nikita.model.noark5.v4;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.*;
+import nikita.util.deserialisers.RegistryEntryDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.REGISTRY_ENTRY;
 
 @Entity
 @Table(name = "registry_entry")
@@ -16,7 +22,10 @@ import java.util.Set;
 // Enable soft delete of RegistryEntry
 @SQLDelete(sql="UPDATE registry_entry SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class RegistryEntry extends BasicRecord implements Serializable {
+@Indexed(index = "registry_entry")
+@JsonDeserialize(using = RegistryEntryDeserializer.class)
+public class RegistryEntry extends BasicRecord implements IElectronicSignature, IPrecedence, ICorrespondencePart,
+        ISignOff, IDocumentFlow {
 
     private static final long serialVersionUID = 1L;
 
@@ -25,6 +34,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "record_year")
     @Audited
+    @Field
     protected Integer recordYear;
 
     /**
@@ -32,6 +42,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "record_sequence_number")
     @Audited
+    @Field
     protected Integer recordSequenceNumber;
 
     /**
@@ -39,6 +50,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "registry_entry_number")
     @Audited
+    @Field
     protected Integer registryEntryNumber;
 
     /**
@@ -46,6 +58,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "registry_entry_type")
     @Audited
+    @Field
     protected String registryEntryType;
 
     /**
@@ -53,6 +66,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "record_status")
     @Audited
+    @Field
     protected String recordStatus;
 
     /**
@@ -61,6 +75,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
     @Column(name = "record_date")
     @Temporal(TemporalType.DATE)
     @Audited
+    @Field
     protected Date recordDate;
 
     /**
@@ -69,6 +84,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
     @Column(name = "document_date")
     @Temporal(TemporalType.DATE)
     @Audited
+    @Field
     protected Date documentDate;
 
     /**
@@ -77,6 +93,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
     @Column(name = "received_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date receivedDate;
 
     /**
@@ -85,6 +102,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
     @Column(name = "sent_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date sentDate;
 
     /**
@@ -93,6 +111,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
     @Column(name = "due_date")
     @Temporal(TemporalType.DATE)
     @Audited
+    @Field
     protected Date dueDate;
 
     /**
@@ -101,6 +120,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
     @Column(name = "freedom_assessment_date")
     @Temporal(TemporalType.DATE)
     @Audited
+    @Field
     protected Date freedomAssessmentDate;
 
     /**
@@ -108,6 +128,7 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "number_of_attachments")
     @Audited
+    @Field
     protected Integer numberOfAttachments;
 
     /**
@@ -123,24 +144,19 @@ public class RegistryEntry extends BasicRecord implements Serializable {
      */
     @Column(name = "loaned_to")
     @Audited
-    protected Date loanedTo;
+    protected String loanedTo;
 
     /**
      * M308 - journalenhet (xs:string)
      */
     @Column(name = "records_management_unit")
     @Audited
+    @Field
     protected String recordsManagementUnit;
-
-    // Used for soft delete.
-    @Column(name = "deleted")
-    @Audited
-    private Boolean deleted;
-
     @Column(name = "owned_by")
     @Audited
+    @Field
     protected String ownedBy;
-
     // Links to CorrespondencePart
     @ManyToMany
     @JoinTable(name = "registry_entry_correspondence_part",
@@ -149,11 +165,9 @@ public class RegistryEntry extends BasicRecord implements Serializable {
             inverseJoinColumns = @JoinColumn(name = "f_pk_correspondence_part_id",
                     referencedColumnName = "pk_correspondence_part_id"))
     protected Set<CorrespondencePart> referenceCorrespondencePart = new HashSet<CorrespondencePart>();
-
-    // Links to Workflow
+    // Links to DocumentFlow
     @OneToMany(mappedBy = "referenceRegistryEntry")
-    protected Set<Workflow> referenceRecord = new HashSet<Workflow>();
-
+    protected Set<DocumentFlow> referenceDocumentFlow = new HashSet<DocumentFlow>();
     // Links to SignOff
     @ManyToMany
     @JoinTable(name = "registry_entry_sign_off",
@@ -163,7 +177,6 @@ public class RegistryEntry extends BasicRecord implements Serializable {
                     referencedColumnName = "pk_sign_off_id"))
 
     protected Set<SignOff> referenceSignOff = new HashSet<SignOff>();
-
     // Links to Precedence
     @ManyToMany
     @JoinTable(name = "registry_entry_precedence",
@@ -171,8 +184,15 @@ public class RegistryEntry extends BasicRecord implements Serializable {
                     referencedColumnName = "pk_record_id"),
             inverseJoinColumns = @JoinColumn(name = "f_pk_precedence_id",
                     referencedColumnName = "pk_precedence_id"))
-
     protected Set<Precedence> referencePrecedence = new HashSet<Precedence>();
+    @OneToOne
+    @JoinColumn(name="pk_electronic_signature_id")
+    protected ElectronicSignature referenceElectronicSignature;
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    @Field
+    private Boolean deleted;
 
     public Integer getRecordYear() {
         return recordYear;
@@ -278,11 +298,11 @@ public class RegistryEntry extends BasicRecord implements Serializable {
         this.loanedDate = loanedDate;
     }
 
-    public Date getLoanedTo() {
+    public String getLoanedTo() {
         return loanedTo;
     }
 
-    public void setLoanedTo(Date loanedTo) {
+    public void setLoanedTo(String loanedTo) {
         this.loanedTo = loanedTo;
     }
 
@@ -310,12 +330,19 @@ public class RegistryEntry extends BasicRecord implements Serializable {
         this.ownedBy = ownedBy;
     }
 
-    public Set<Workflow> getReferenceRecord() {
-        return referenceRecord;
+    @Override
+    public String getBaseTypeName() {
+        return REGISTRY_ENTRY;
     }
 
-    public void setReferenceRecord(Set<Workflow> referenceRecord) {
-        this.referenceRecord = referenceRecord;
+    @Override
+    public Set<DocumentFlow> getReferenceDocumentFlow() {
+        return referenceDocumentFlow;
+    }
+
+    @Override
+    public void setReferenceDocumentFlow(Set<DocumentFlow> referenceDocumentFlow) {
+        this.referenceDocumentFlow = referenceDocumentFlow;
     }
 
     public Set<CorrespondencePart> getReferenceCorrespondencePart() {
@@ -340,6 +367,14 @@ public class RegistryEntry extends BasicRecord implements Serializable {
 
     public void setReferencePrecedence(Set<Precedence> referencePrecedence) {
         this.referencePrecedence = referencePrecedence;
+    }
+
+    public ElectronicSignature getReferenceElectronicSignature() {
+        return referenceElectronicSignature;
+    }
+
+    public void setReferenceElectronicSignature(ElectronicSignature referenceElectronicSignature) {
+        this.referenceElectronicSignature = referenceElectronicSignature;
     }
 
     @Override

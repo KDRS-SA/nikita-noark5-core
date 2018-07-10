@@ -1,8 +1,14 @@
 package no.arkivlab.hioa.nikita.webapp.service.impl;
 
+import nikita.model.noark5.v4.Class;
 import nikita.model.noark5.v4.ClassificationSystem;
 import nikita.repository.n5v4.IClassificationSystemRepository;
+import no.arkivlab.hioa.nikita.webapp.service.interfaces.IClassService;
 import no.arkivlab.hioa.nikita.webapp.service.interfaces.IClassificationSystemService;
+import no.arkivlab.hioa.nikita.webapp.util.NoarkUtils;
+import no.arkivlab.hioa.nikita.webapp.util.exceptions.NoarkEntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,36 +17,63 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
+
+import static nikita.config.Constants.INFO_CANNOT_FIND_OBJECT;
 
 @Service
 @Transactional
 public class ClassificationSystemService implements IClassificationSystemService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ClassificationSystemService.class);
+
+    @Autowired
+    IClassService classService;
+
     @Autowired
     IClassificationSystemRepository classificationSystemRepository;
+
+    @Autowired
+    EntityManager entityManager;
+
+    //@Value("${nikita-noark5-core.pagination.maxPageSize}")
+    Integer maxPageSize = new Integer(10);
 
     public ClassificationSystemService() {
     }
 
     // All CREATE operations
-    public ClassificationSystem save(ClassificationSystem classificationSystem){
-        String username = (String) SecurityContextHolder.getContext().getAuthentication().getName();
-
-        classificationSystem.setSystemId(UUID.randomUUID().toString());
-        classificationSystem.setCreatedDate(new Date());
-        classificationSystem.setOwnedBy(username);
-        classificationSystem.setCreatedBy(username);
-        classificationSystem.setDeleted(false);
-
-
+    @Override
+    public ClassificationSystem createNewClassificationSystem(ClassificationSystem classificationSystem){
+        NoarkUtils.NoarkEntity.Create.setNoarkEntityValues(classificationSystem);
+        NoarkUtils.NoarkEntity.Create.setFinaliseEntityValues(classificationSystem);
         return classificationSystemRepository.save(classificationSystem);
     }
 
+    @Override
+    public Class createClassAssociatedWithClassificationSystem(String classificationSystemSystemId, Class klass) {
+        Class persistedClass = null;
+        ClassificationSystem classificationSystem = classificationSystemRepository.findBySystemId(classificationSystemSystemId);
+        if (classificationSystem == null) {
+            String info = INFO_CANNOT_FIND_OBJECT + " ClassificationSystem, using classificationSystemSystemId " + classificationSystemSystemId;
+            logger.info(info) ;
+            throw new NoarkEntityNotFoundException(info);
+        }
+        else {
+            klass.setReferenceClassificationSystem(classificationSystem);
+            persistedClass = classService.save(klass);
+        }
+        return persistedClass;
+    }
+
     // All READ operations
-    public Iterable<ClassificationSystem> findAll() {
+    public List<ClassificationSystem> findAll() {
         return classificationSystemRepository.findAll();
     }
 
@@ -354,7 +387,28 @@ public class ClassificationSystemService implements IClassificationSystemService
     }
 
 
-    // All DELETE operations
+    // All READ operations
+    @Override
+    public List<ClassificationSystem> findClassificationSystemByOwnerPaginated(Integer top, Integer skip) {
+        if (top == null || top > maxPageSize) {
+            top = maxPageSize;
+        }
+        if (skip == null) {
+            skip = 0;
+        }
+
+        String loggedInUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<ClassificationSystem> criteriaQuery = criteriaBuilder.createQuery(ClassificationSystem.class);
+        Root<ClassificationSystem> from = criteriaQuery.from(ClassificationSystem.class);
+        CriteriaQuery<ClassificationSystem> select = criteriaQuery.select(from);
+
+        criteriaQuery.where(criteriaBuilder.equal(from.get("ownedBy"), loggedInUser));
+        TypedQuery<ClassificationSystem> typedQuery = entityManager.createQuery(select);
+        typedQuery.setFirstResult(skip);
+        typedQuery.setMaxResults(maxPageSize);
+        return typedQuery.getResultList();
+    }
 
 
 }

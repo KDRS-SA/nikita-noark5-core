@@ -1,20 +1,23 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.ICorrespondencePartEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.CORRESPONDENCE_PART;
 
 @Entity
 @Table(name = "correspondence_part")
 // Enable soft delete of CorrespondencePart
 @SQLDelete(sql="UPDATE correspondence_part SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class CorrespondencePart implements Serializable {
+public class CorrespondencePart implements ICorrespondencePartEntity, INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -23,15 +26,23 @@ public class CorrespondencePart implements Serializable {
     @Column(name = "pk_correspondence_part_id", nullable = false, insertable = true, updatable = false)
     protected Long id;
 
-    /** M087 - korrespondanseparttype (xs:string) */
-    @Column(name = "correspondance_part_type")
+    /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
     @Audited
-    protected String correspondancePartType;
+    protected String systemId;
+
+
+    /** M087 - korrespondanseparttype (xs:string) */
+    @Column(name = "correspondence_part_type")
+    @Audited
+    protected String correspondencePartType;
 
     /** M400 - korrespondansepartNavn (xs:string) */
     @Audited
-    @Column(name = "correspondance_part_name")
-    protected String correspondancePartName;
+    @Column(name = "correspondence_part_name")
+    protected String correspondencePartName;
 
     /** M406 - postadresse (xs:string) */
     @Audited
@@ -77,20 +88,19 @@ public class CorrespondencePart implements Serializable {
     @Column(name = "case_handler")
     @Audited
     protected String caseHandler;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Links to Record
+    @ManyToMany(mappedBy = "referenceCorrespondencePart")
+    protected Set<RegistryEntry> referenceRegistryEntry = new HashSet<RegistryEntry>();
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-
-    // Links to Record
-    @ManyToMany(mappedBy = "referenceCorrespondencePart")
-    protected Set<RegistryEntry> referenceRegistryEntry = new HashSet<RegistryEntry>();
 
     public Long getId() {
         return id;
@@ -100,20 +110,28 @@ public class CorrespondencePart implements Serializable {
         this.id = id;
     }
 
-    public String getCorrespondancePartType() {
-        return correspondancePartType;
+    public String getSystemId() {
+        return systemId;
     }
 
-    public void setCorrespondancePartType(String correspondancePartType) {
-        this.correspondancePartType = correspondancePartType;
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
-    public String getCorrespondancePartName() {
-        return correspondancePartName;
+    public String getCorrespondencePartType() {
+        return correspondencePartType;
     }
 
-    public void setCorrespondancePartName(String correspondancePartName) {
-        this.correspondancePartName = correspondancePartName;
+    public void setCorrespondencePartType(String correspondencePartType) {
+        this.correspondencePartType = correspondencePartType;
+    }
+
+    public String getCorrespondencePartName() {
+        return correspondencePartName;
+    }
+
+    public void setCorrespondencePartName(String correspondencePartName) {
+        this.correspondencePartName = correspondencePartName;
     }
 
     public String getPostalAddress() {
@@ -204,6 +222,19 @@ public class CorrespondencePart implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return CORRESPONDENCE_PART;
+    }
+
     public Set<RegistryEntry> getReferenceRegistryEntry() {
         return referenceRegistryEntry;
     }
@@ -224,9 +255,10 @@ public class CorrespondencePart implements Serializable {
                 ", postalTown='" + postalTown + '\'' +
                 ", postCode='" + postCode + '\'' +
                 ", postalAddress='" + postalAddress + '\'' +
-                ", correspondancePartName='" + correspondancePartName + '\'' +
-                ", correspondancePartType='" + correspondancePartType + '\'' +
+                ", correspondencePartName='" + correspondencePartName + '\'' +
+                ", correspondencePartType='" + correspondencePartType + '\'' +
                 ", id=" + id +
+                ", version='" + version + '\'' +
                 '}';
     }
 }

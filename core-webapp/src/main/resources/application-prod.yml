@@ -22,10 +22,10 @@ spring:
             enabled: false # we use gulp + BrowserSync for livereload
     datasource:
         driverClassName: org.postgresql.Driver
-        url: jdbc:postgresql://localhost:5432/nikita_noark5_core_dev
-        name: nikita_noark5_core_dev
-        username: AAAAAAAAAAAAA
-        password: AAAAAAAAAAAAA
+        url: jdbc:postgresql://localhost:5432/nikita_noark5_core_prod
+        name: nikita_noark5_core_prod
+        username: nikita
+        password: nikitapass
         validation-query: SELECT 1;
     jpa:
         database-platform: org.hibernate.dialect.PostgreSQL82Dialect
@@ -36,11 +36,15 @@ spring:
             hibernate.cache.use_query_cache: false
             hibernate.generate_statistics: true
             hibernate.search.default.directory_provider: filesystem
-            hibernate.search.default.indexBase: target/lucene/indexes # This will probably be a /var/??? in production
+            hibernate.search.default.indexBase: core-webapp/target/lucene/indexes # This will probably be a /var/??? in production
+            hibernate.hbm2ddl.import_files: classpath:/db/postgres/prod/import.sql # Import some data into the demo
+            hibernate.dialect: org.hibernate.dialect.PostgreSQL82Dialect
+            hibernate.show_sql: false
+            hibernate.hbm2ddl.auto: create
             # Enable these to support elasticsearch, but wait until out of beta!
             #hibernate.search.default.indexmanager: elasticsearch
             #hibernate.search.default.elasticsearch.index_schema_management_strategy: MERGE # on applicatoin startup, use existing index
-            #hibernate.search.default.elasticsearch.host: https://127.0.0.1:9876 # Only required if not using localhost
+            #hibernate.search.default.elasticsearch.host: https://localhost:9876 # Only required if not using localhost
 
     mail:
         host: localhost
@@ -48,14 +52,23 @@ spring:
         cache-seconds: 1
     thymeleaf:
         cache: false
-
+jwt:
+  header: Authorization
+  secret: mySecret
+  expiration: 604800
+  route:
+    authentication:
+      path: auth
+      refresh: refresh
 server:
-    port: 8443
-    ssl:
-        key-store: classpath:saml/nikitaKeystore.jks
-        key-store-password: ************
-        keyStoreType: PKCS12
-        keyAlias: test-saml
+    contextPath: /noark5v4
+    port: 8092
+    address: localhost
+#    ssl:
+ #       key-store: classpath:saml/nikitaKeystore.jks
+  #      key-store-password: hello
+   #     keyStoreType: PKCS12
+#        keyAlias: test-saml
 
 
 # ===================================================================
@@ -63,8 +76,10 @@ server:
 # ===================================================================
 
 nikita-noark5-core:
+    pagination:
+          _maxPageSize: 10
     mail:
-        from: nikita@nikita.arkivlab.no
+        from: nikita@example.com
     metrics: # DropWizard Metrics configuration, used by MetricsConfiguration
         jmx.enabled: true
         spark:
@@ -94,3 +109,12 @@ nikita-noark5-core:
          jpa.generateDdl: true
     server:
          name: nikita.hioa.no
+         port: 8092
+         address: localhost
+    details:
+        conformity-levels:
+            official: arkivstruktur, sakarkiv
+            non-official: gui, import-api
+    storage:
+        location: /tmp/dokumenter
+    checksumAlgorithm: SHA-256

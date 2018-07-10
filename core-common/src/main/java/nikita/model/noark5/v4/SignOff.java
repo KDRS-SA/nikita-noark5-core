@@ -1,5 +1,6 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
@@ -10,13 +11,15 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import static nikita.config.N5ResourceMappings.SIGN_OFF;
+
 
 @Entity
 @Table(name = "sign_off")
 // Enable soft delete of SignOff
 @SQLDelete(sql="UPDATE sign_off SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class SignOff implements Serializable {
+public class SignOff implements Serializable, INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -24,6 +27,13 @@ public class SignOff implements Serializable {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "pk_sign_off_id", nullable = false, insertable = true, updatable = false)
     protected Long id;
+
+    /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
+    @Audited
+    protected String systemId;
 
     /** M617 - avskrivningsdato */
     @Column(name = "sign_off_date")
@@ -39,30 +49,28 @@ public class SignOff implements Serializable {
     @Column(name = "sign_off_method")
     @Audited
     protected String signOffMethod;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    /** M215 referanseAvskrivesAvJournalpost */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fk_record_id")
+    protected RegistryEntry referenceSignedOffRecord;
+    /** M??? - referanseAvskrivesAvKorrespondansepart
+     * Note this is new to v4, I think. Missing Metatdata number */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pk_correspondence_part_id")
+    protected CorrespondencePart referenceSignedOffCorrespondencePart;
+    // Links to RegistryEnty
+    @ManyToMany(mappedBy = "referenceSignOff")
+    protected Set<RegistryEntry> referenceRecord = new HashSet<RegistryEntry>();
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    /** M215 referanseAvskrivesAvJournalpost */
-    @OneToOne
-    @JoinColumn(name="system_id")
-    protected RegistryEntry referenceSignedOffRecord;
-
-    /** M??? - referanseAvskrivesAvKorrespondansepart
-     * Note this is new to v4, I think. Missing Metatdata number */
-    @OneToOne
-    @JoinColumn(name="pk_record_id")
-    protected CorrespondencePart referenceSignedOffCorrespondencePart;
-
-    // Links to RegistryEnty
-    @ManyToMany(mappedBy = "referenceSignOff")
-    protected Set<RegistryEntry> referenceRecord = new HashSet<RegistryEntry>();
 
     public Long getId() {
         return id;
@@ -70,6 +78,14 @@ public class SignOff implements Serializable {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getSystemId() {
+        return systemId;
+    }
+
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
     public Date getSignOffDate() {
@@ -112,6 +128,19 @@ public class SignOff implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return SIGN_OFF;
+    }
+
     public RegistryEntry getReferenceSignedOffRecord() {
         return referenceSignedOffRecord;
     }
@@ -142,6 +171,7 @@ public class SignOff implements Serializable {
                 "signOffMethod='" + signOffMethod + '\'' +
                 ", signOffBy='" + signOffBy + '\'' +
                 ", signOffDate=" + signOffDate +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

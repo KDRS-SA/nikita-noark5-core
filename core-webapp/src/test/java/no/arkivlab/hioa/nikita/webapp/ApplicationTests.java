@@ -1,14 +1,14 @@
 package no.arkivlab.hioa.nikita.webapp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import nikita.model.noark5.v4.Fonds;
-import nikita.odata.SearchCriteria;
-import no.arkivlab.hioa.nikita.webapp.security.MockSecurityContext;
 import no.arkivlab.hioa.nikita.webapp.run.N5CoreApp;
 import no.arkivlab.hioa.nikita.webapp.spring.datasource.TestDataSource;
-import no.arkivlab.hioa.nikita.webapp.util.exceptions.UserExistsException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.junit.runners.MethodSorters;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.ConfigFileApplicationContextInitializer;
@@ -18,37 +18,25 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
-import org.springframework.security.authentication.TestingAuthenticationToken;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.security.web.FilterChainProxy;
-import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.AnnotationConfigWebContextLoader;
 import org.springframework.test.context.web.WebAppConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
+import javax.servlet.http.HttpSession;
 import java.util.Locale;
 import java.util.Map;
 
-import static nikita.config.Constants.API_PATH;
+import static nikita.config.Constants.HATEOAS_API_PATH;
 import static nikita.config.N5ResourceMappings.DOCUMENT_MEDIUM_ELECTRONIC;
 import static nikita.config.N5ResourceMappings.FONDS;
 import static org.junit.Assert.assertTrue;
@@ -57,11 +45,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.context.WebApplicationContext;
-
-import javax.servlet.http.HttpSession;
 
 
 /**
@@ -180,7 +163,7 @@ public class ApplicationTests {
 
 
     /**
-     * Test ability to create a correct fonds object with required metadata. Expected return value
+     * Test ability to create a correct fonds object with required administration. Expected return value
      * is 200 OK and the original Fonds object
      */
     @Test
@@ -195,11 +178,7 @@ public class ApplicationTests {
         fonds.setDescription(fondsDescription);
         fonds.setDocumentMedium(DOCUMENT_MEDIUM_ELECTRONIC);
 
-        List<SearchCriteria> params = new ArrayList<SearchCriteria>();
-        //params.add(new SearchCriteria("createdDate", "gt", "John"));
-        //params.add(new SearchCriteria("createdDate", "lt", "Doe"));
-
-        mockMvc.perform(post("/" + API_PATH + "/" + FONDS)
+        mockMvc.perform(post("/" + HATEOAS_API_PATH + "/" + FONDS)
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .content(objectMapper.writeValueAsString(fonds)))
                 .andExpect(status().isOk());
@@ -219,7 +198,7 @@ public class ApplicationTests {
         fonds.setDocumentMedium(DOCUMENT_MEDIUM_ELECTRONIC);
 
 
-            ResultActions result = mockMvc.perform(get("/" + API_PATH + "/" + FONDS + "/1"))
+        ResultActions result = mockMvc.perform(get("/" + HATEOAS_API_PATH + "/" + FONDS + "/1"))
                 .andExpect(status().isOk())
                 .andDo(print())
                 .andExpect(

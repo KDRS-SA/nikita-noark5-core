@@ -1,5 +1,7 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.ICasePartyEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
@@ -8,22 +10,30 @@ import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 
+import static nikita.config.N5ResourceMappings.CASE_PARTY;
+
 /**
  * Created by tsodring on 4/10/16.
  */
 
 @Entity
 @Table(name = "case_party")
-
 // Enable soft delete of CaseParty
 @SQLDelete(sql="UPDATE case_party SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class CaseParty {
+public class CaseParty implements ICasePartyEntity, INoarkSystemIdEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "pk_case_party_id", nullable = false, insertable = true, updatable = false)
     protected long id;
+
+    /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
+    @Audited
+    protected String systemId;
 
     /**
      * M010 - sakspartID (xs:string)
@@ -69,11 +79,11 @@ public class CaseParty {
     protected String postalTown;
 
     /**
-     * M409 - land (xs:string)
+     * M409 - utenlandsadresse (xs:string)
      */
-    @Column(name = "country")
+    @Column(name = "foreign_address")
     @Audited
-    protected String country;
+    protected String foreignAddress;
 
     /**
      * M410 - epostadresse (xs:string)
@@ -84,6 +94,7 @@ public class CaseParty {
 
     /**
      * M411 - telefonnummer (xs:string)
+     * TODO: This is a multi-value attributte, that needs to implemented properly
      */
     @Column(name = "telephone_number")
     @Audited
@@ -95,19 +106,19 @@ public class CaseParty {
     @Column(name = "contact_person")
     @Audited
     protected String contactPerson;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Links to CaseFiles
+    @ManyToMany(mappedBy = "referenceCaseParty")
+    protected Set<CaseFile> referenceCaseFile = new HashSet<CaseFile>();
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Links to CaseFiles
-    @ManyToMany(mappedBy = "referenceCaseParty")
-    protected Set<CaseFile> referenceCaseFile = new HashSet<CaseFile>();
 
     public long getId() {
         return id;
@@ -115,6 +126,14 @@ public class CaseParty {
 
     public void setId(long id) {
         this.id = id;
+    }
+
+    public String getSystemId() {
+        return systemId;
+    }
+
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
     }
 
     public String getCasePartyId() {
@@ -125,12 +144,12 @@ public class CaseParty {
         this.casePartyId = casePartyId;
     }
 
-    public String get$casePartyName() {
+    public String getCasePartyName() {
         return casePartyName;
     }
 
-    public void set$casePartyName(String $casePartyName) {
-        this.casePartyName = $casePartyName;
+    public void setCasePartyName(String casePartyName) {
+        this.casePartyName = casePartyName;
     }
 
     public String getCasePartyRole() {
@@ -165,12 +184,12 @@ public class CaseParty {
         this.postalTown = postalTown;
     }
 
-    public String getCountry() {
-        return country;
+    public String getForeignAddress() {
+        return foreignAddress;
     }
 
-    public void setCountry(String country) {
-        this.country = country;
+    public void setForeignAddress(String foreignAddress) {
+        this.foreignAddress = foreignAddress;
     }
 
     public String getEmailAddress() {
@@ -213,6 +232,19 @@ public class CaseParty {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return CASE_PARTY;
+    }
+
     public Set<CaseFile> getReferenceCaseFile() {
         return referenceCaseFile;
     }
@@ -226,15 +258,16 @@ public class CaseParty {
         return "CaseParty{" +
                 "id=" + id +
                 ", casePartyId='" + casePartyId + '\'' +
-                ", $casePartyName='" + casePartyName + '\'' +
+                ", casePartyName='" + casePartyName + '\'' +
                 ", casePartyRole='" + casePartyRole + '\'' +
                 ", postalAddress='" + postalAddress + '\'' +
                 ", postCode='" + postCode + '\'' +
                 ", postalTown='" + postalTown + '\'' +
-                ", country='" + country + '\'' +
+                ", foreignAddress='" + foreignAddress + '\'' +
                 ", emailAddress='" + emailAddress + '\'' +
                 ", telephoneNumber='" + telephoneNumber + '\'' +
                 ", contactPerson='" + contactPerson + '\'' +
+                ", version='" + version + '\'' +
                 '}';
     }
 }

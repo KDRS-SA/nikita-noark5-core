@@ -1,26 +1,36 @@
 package nikita.model.noark5.v4;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.IClassified;
+import nikita.model.noark5.v4.interfaces.IDisposal;
+import nikita.model.noark5.v4.interfaces.IScreening;
+import nikita.model.noark5.v4.interfaces.entities.INikitaEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkCreateEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
+import nikita.util.deserialisers.RecordDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 import javax.persistence.*;
-import java.io.Serializable;
-import java.lang.*;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.REGISTRATION;
 
 @Entity
 @Table(name = "record")
 @Inheritance(strategy = InheritanceType.JOINED)
 // Enable soft delete of Record
-@SQLDelete(sql="UPDATE record SET deleted = true WHERE id = ?")
-@Where(clause="deleted <> true")
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property="id")
-public class Record implements Serializable {
+@SQLDelete(sql = "UPDATE record SET deleted = true WHERE id = ?")
+@Where(clause = "deleted <> true")
+@Indexed(index = "record")
+@JsonDeserialize(using = RecordDeserializer.class)
+public class Record implements INikitaEntity, INoarkSystemIdEntity, INoarkCreateEntity, IClassified, IScreening,
+        IDisposal {
 
     private static final long serialVersionUID = 1L;
 
@@ -32,8 +42,9 @@ public class Record implements Serializable {
     /**
      * M001 - systemID (xs:string)
      */
-    @Column(name = "system_id")
+    @Column(name = "system_id", unique=true)
     @Audited
+    @Field
     protected String systemId;
 
     /**
@@ -42,6 +53,7 @@ public class Record implements Serializable {
     @Column(name = "created_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date createdDate;
 
     /**
@@ -49,6 +61,7 @@ public class Record implements Serializable {
      */
     @Column(name = "created_by")
     @Audited
+    @Field
     protected String createdBy;
 
     /**
@@ -57,6 +70,7 @@ public class Record implements Serializable {
     @Column(name = "archived_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date archivedDate;
 
     /**
@@ -64,66 +78,61 @@ public class Record implements Serializable {
      */
     @Column(name = "archived_by")
     @Audited
+    @Field
     protected String archivedBy;
-
+    @Column(name = "owned_by")
+    @Audited
+    @Field
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Link to File
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "record_file_id", referencedColumnName = "pk_file_id")
+    protected File referenceFile;
+    // Link to Series
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "record_series_id", referencedColumnName = "pk_series_id")
+    protected Series referenceSeries;
+    // Link to Class
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "record_class_id", referencedColumnName = "pk_class_id")
+    protected Class referenceClass;
+    // Links to DocumentDescriptions
+    @ManyToMany
+    @JoinTable(name = "record_document_description", joinColumns = @JoinColumn(name = "f_pk_record_id",
+            referencedColumnName = "pk_record_id"),
+            inverseJoinColumns = @JoinColumn(name = "f_pk_document_description_id",
+                    referencedColumnName = "pk_document_description_id"))
+    protected Set<DocumentDescription> referenceDocumentDescription = new HashSet<DocumentDescription>();
+    // Links to DocumentObjects
+    @OneToMany(mappedBy = "referenceRecord", fetch = FetchType.LAZY)
+    protected Set<DocumentObject> referenceDocumentObject = new HashSet<DocumentObject>();
+    // Links to Classified
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "record_classified_id", referencedColumnName = "pk_classified_id")
+    protected Classified referenceClassified;
+    // Link to Disposal
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "record_disposal_id", referencedColumnName = "pk_disposal_id")
+    protected Disposal referenceDisposal;
+    // Link to Screening
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "record_screening_id", referencedColumnName = "pk_screening_id")
+    protected Screening referenceScreening;
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
+    @Field
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Link to File
-    @ManyToOne
-    @JoinColumn(name = "record_file_id", referencedColumnName = "pk_file_id")
-    protected File referenceFile;
-
-    // Link to Series
-    @ManyToOne
-    @JoinColumn(name = "record_series_id", referencedColumnName = "pk_series_id")
-    protected Series referenceSeries;
-
-    // Link to Class
-    @ManyToOne
-    @JoinColumn(name = "record_class_id", referencedColumnName = "pk_class_id")
-    protected nikita.model.noark5.v4.Class referenceClass;
-
-    // Links to DocumentDescriptions
-    @ManyToMany
-    @JoinTable(name = "record_document_description", joinColumns = @JoinColumn(name = "f_pk_record_id", referencedColumnName = "pk_record_id"), inverseJoinColumns = @JoinColumn(name = "f_pk_document_description_id", referencedColumnName = "pk_document_description_id"))
-    protected Set<DocumentDescription> referenceDocumentDescription = new HashSet<DocumentDescription>();
-
-    // Links to DocumentObjects
-    @OneToMany(mappedBy = "referenceRecord")
-    protected Set<DocumentObject> referenceDocumentObject = new HashSet<DocumentObject>();
-
-    // Links to Classified
-    @ManyToOne
-    @JoinColumn(name = "record_classified_id", referencedColumnName = "pk_classified_id")
-    protected Classified referenceClassified;
-
-    // Link to Disposal
-    @ManyToOne
-    @JoinColumn(name = "record_disposal_id", referencedColumnName = "pk_disposal_id")
-    protected Disposal referenceDisposal;
-
-    // Link to Screening
-    @ManyToOne
-    @JoinColumn(name = "record_screening_id", referencedColumnName = "pk_screening_id")
-    protected Screening referenceScreening;
-
-
-    @OneToOne(mappedBy = "referenceToRecord")
-    protected CrossReference referenceToCrossReference;
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getSystemId() {
@@ -182,6 +191,19 @@ public class Record implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return REGISTRATION;
+    }
+
     public File getReferenceFile() {
         return referenceFile;
     }
@@ -198,11 +220,11 @@ public class Record implements Serializable {
         this.referenceSeries = referenceSeries;
     }
 
-    public nikita.model.noark5.v4.Class getReferenceClass() {
+    public Class getReferenceClass() {
         return referenceClass;
     }
 
-    public void setReferenceClass(nikita.model.noark5.v4.Class referenceClass) {
+    public void setReferenceClass(Class referenceClass) {
         this.referenceClass = referenceClass;
     }
 
@@ -224,36 +246,34 @@ public class Record implements Serializable {
         this.referenceDocumentObject = referenceDocumentObject;
     }
 
+    @Override
     public Classified getReferenceClassified() {
         return referenceClassified;
     }
 
+    @Override
     public void setReferenceClassified(Classified referenceClassified) {
         this.referenceClassified = referenceClassified;
     }
 
+    @Override
     public Disposal getReferenceDisposal() {
         return referenceDisposal;
     }
 
+    @Override
     public void setReferenceDisposal(Disposal referenceDisposal) {
         this.referenceDisposal = referenceDisposal;
     }
 
+    @Override
     public Screening getReferenceScreening() {
         return referenceScreening;
     }
 
+    @Override
     public void setReferenceScreening(Screening referenceScreening) {
         this.referenceScreening = referenceScreening;
-    }
-
-    public CrossReference getReferenceToCrossReference() {
-        return referenceToCrossReference;
-    }
-
-    public void setReferenceToCrossReference(CrossReference referenceToCrossReference) {
-        this.referenceToCrossReference = referenceToCrossReference;
     }
 
     @Override
@@ -264,6 +284,7 @@ public class Record implements Serializable {
                 ", createdBy='" + createdBy + '\'' +
                 ", createdDate=" + createdDate +
                 ", systemId='" + systemId + '\'' +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

@@ -1,21 +1,23 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
 
 import javax.persistence.*;
 import java.io.Serializable;
-import java.lang.*;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.KEYWORD;
 
 @Entity
 @Table(name = "keyword")
 // Enable soft delete of Keyword
 @SQLDelete(sql="UPDATE keyword SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class Keyword implements Serializable {
+public class Keyword implements Serializable, INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -27,7 +29,7 @@ public class Keyword implements Serializable {
     /**
      * M001 - systemID (xs:string)
      */
-    @Column(name = "system_id")
+    @Column(name = "system_id", unique=true)
     @Audited
     protected String systemId;
 
@@ -37,27 +39,25 @@ public class Keyword implements Serializable {
     @Column(name = "keyword")
     @Audited
     protected String keyword;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Links to Class
+    @ManyToMany(mappedBy = "referenceKeyword")
+    protected Set<Class> referenceClass = new HashSet<Class>();
+    // Links to File
+    @ManyToMany(mappedBy = "referenceKeyword")
+    protected Set<File> referenceFile = new HashSet<File>();
+    // Links to BasicRecord
+    @ManyToMany(mappedBy = "referenceKeyword")
+    protected Set<BasicRecord> referenceBasicRecord = new HashSet<BasicRecord>();
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Links to Class
-    @ManyToMany(mappedBy = "referenceKeyword")
-    protected Set<nikita.model.noark5.v4.Class> referenceClass = new HashSet<nikita.model.noark5.v4.Class>();
-
-    // Links to File
-    @ManyToMany(mappedBy = "referenceKeyword")
-    protected Set<File> referenceFile = new HashSet<File>();
-
-    // Links to BasicRecord
-    @ManyToMany(mappedBy = "referenceKeyword")
-    protected Set<BasicRecord> referenceBasicRecord = new HashSet<BasicRecord>();
 
     public String getSystemId() {
         return systemId;
@@ -91,11 +91,24 @@ public class Keyword implements Serializable {
         this.ownedBy = ownedBy;
     }
 
-    public Set<nikita.model.noark5.v4.Class> getReferenceClass() {
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return KEYWORD;
+    }
+
+    public Set<Class> getReferenceClass() {
         return referenceClass;
     }
 
-    public void setReferenceClass(Set<nikita.model.noark5.v4.Class> referenceClass) {
+    public void setReferenceClass(Set<Class> referenceClass) {
         this.referenceClass = referenceClass;
     }
 
@@ -120,6 +133,7 @@ public class Keyword implements Serializable {
         return "Keyword{" +
                 "keyword='" + keyword + '\'' +
                 ", systemId='" + systemId + '\'' +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

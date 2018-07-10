@@ -1,37 +1,49 @@
 package nikita.model.noark5.v4;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.IConversion;
+import nikita.model.noark5.v4.interfaces.IElectronicSignature;
+import nikita.model.noark5.v4.interfaces.entities.INikitaEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkCreateEntity;
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
+import nikita.util.deserialisers.DocumentObjectDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.DOCUMENT_OBJECT;
 
 @Entity
 @Table(name = "document_object")
 // Enable soft delete of DocumentObject
 @SQLDelete(sql="UPDATE document_object SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property="id")
-public class DocumentObject implements Serializable {
+@Indexed(index = "document_object")
+@JsonDeserialize(using = DocumentObjectDeserializer.class)
+public class DocumentObject implements INikitaEntity, INoarkSystemIdEntity, INoarkCreateEntity,
+        IElectronicSignature, IConversion
+{
 
     private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "pk_document_object_id", nullable = false, insertable = true, updatable = false)
-    protected long id;
+    protected Long id;
 
     /**
      * M001 - systemID (xs:string)
      */
-    @Column(name = "system_id")
+    @Column(name = "system_id", unique=true)
     @Audited
+    @Field
     protected String systemId;
 
     /**
@@ -39,6 +51,7 @@ public class DocumentObject implements Serializable {
      **/
     @Column(name = "version_number")
     @Audited
+    @Field
     protected Integer versionNumber;
 
     /**
@@ -46,6 +59,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "variant_format")
     @Audited
+    @Field
     protected String variantFormat;
 
     /**
@@ -53,6 +67,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "format")
     @Audited
+    @Field
     protected String format;
 
     /**
@@ -60,6 +75,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "format_details")
     @Audited
+    @Field
     protected String formatDetails;
 
     /**
@@ -68,6 +84,7 @@ public class DocumentObject implements Serializable {
     @Column(name = "created_date")
     @Temporal(TemporalType.TIMESTAMP)
     @Audited
+    @Field
     protected Date createdDate;
 
     /**
@@ -75,6 +92,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "created_by")
     @Audited
+    @Field
     protected String createdBy;
 
     /**
@@ -82,6 +100,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "reference_document_file")
     @Audited
+    @Field
     protected String referenceDocumentFile;
 
     /**
@@ -89,6 +108,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "checksum")
     @Audited
+    @Field
     protected String checksum;
 
     /**
@@ -96,6 +116,7 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "checksum_algorithm")
     @Audited
+    @Field
     protected String checksumAlgorithm;
 
     /**
@@ -103,36 +124,59 @@ public class DocumentObject implements Serializable {
      */
     @Column(name = "file_size")
     @Audited
+    @Field
     protected Long fileSize;
 
-    // Used for soft delete.
-    @Column(name = "deleted")
+    @Column(name = "original_filename")
     @Audited
-    private Boolean deleted;
+    @Field
+    protected String originalFilename;
+
+    @Column(name = "mime_type")
+    @Audited
+    @Field
+    protected String mimeType;
 
     @Column(name = "owned_by")
     @Audited
+    @Field
     protected String ownedBy;
 
+    @Version
+    @Column(name = "version")
+    protected Long version;
+
     // Link to DocumentDescription
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_object_document_description_id", referencedColumnName = "pk_document_description_id")
     protected DocumentDescription referenceDocumentDescription;
-
     // Link to Record
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_object_record_id", referencedColumnName = "pk_record_id")
     protected Record referenceRecord;
-
     // Links to Conversion
     @OneToMany(mappedBy = "referenceDocumentObject")
     protected Set<Conversion> referenceConversion = new HashSet<Conversion>();
+    // Link to ElectronicSignature
+    @OneToOne
+    @JoinColumn(name="pk_electronic_signature_id")
+    protected ElectronicSignature referenceElectronicSignature;
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    @Field
+    private Boolean deleted;
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
     public void setId(long id) {
+        this.id = id;
+    }
+
+    @Override
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -224,6 +268,22 @@ public class DocumentObject implements Serializable {
         this.fileSize = fileSize;
     }
 
+    public String getOriginalFilename() {
+        return originalFilename;
+    }
+
+    public void setOriginalFilename(String originalFilename) {
+        this.originalFilename = originalFilename;
+    }
+
+    public String getMimeType() {
+        return mimeType;
+    }
+
+    public void setMimeType(String mimeType) {
+        this.mimeType = mimeType;
+    }
+
     public Boolean getDeleted() {
         return deleted;
     }
@@ -238,6 +298,19 @@ public class DocumentObject implements Serializable {
 
     public void setOwnedBy(String ownedBy) {
         this.ownedBy = ownedBy;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return DOCUMENT_OBJECT;
     }
 
     public DocumentDescription getReferenceDocumentDescription() {
@@ -265,6 +338,14 @@ public class DocumentObject implements Serializable {
         this.referenceConversion = referenceConversion;
     }
 
+    public ElectronicSignature getReferenceElectronicSignature() {
+        return referenceElectronicSignature;
+    }
+
+    public void setReferenceElectronicSignature(ElectronicSignature referenceElectronicSignature) {
+        this.referenceElectronicSignature = referenceElectronicSignature;
+    }
+
     @Override
     public String toString() {
         return "DocumentObject{" +
@@ -278,7 +359,10 @@ public class DocumentObject implements Serializable {
                 ", format='" + format + '\'' +
                 ", variantFormat='" + variantFormat + '\'' +
                 ", versionNumber=" + versionNumber +
+                ", mimeType=" + mimeType +
+                ", originalFilename=" + originalFilename +
                 ", systemId='" + systemId + '\'' +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

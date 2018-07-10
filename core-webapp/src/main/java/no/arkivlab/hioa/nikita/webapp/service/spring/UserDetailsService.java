@@ -1,24 +1,22 @@
 package no.arkivlab.hioa.nikita.webapp.service.spring;
 
+import no.arkivlab.hioa.nikita.webapp.model.security.Authority;
+import no.arkivlab.hioa.nikita.webapp.model.security.User;
+import no.arkivlab.hioa.nikita.webapp.security.repository.UserRepository;
 import no.arkivlab.hioa.nikita.webapp.util.exceptions.UserExistsException;
-import nikita.model.user.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import nikita.repository.user.UserRepository;
 
-import java.util.Collection;
+import java.util.*;
 
-@Service
-@Transactional
-public class UserDetailsService implements org.springframework.security.core.userdetails.UserDetailsService {
+//@Service
+//@Transactional
+public class UserDetailsService {
+//implements org.springframework.security.core.userdetails.UserDetailsService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserDetailsService.class);
 
@@ -34,21 +32,24 @@ public class UserDetailsService implements org.springframework.security.core.use
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
-                user.isEnabled(),
-                user.isAccountNonExpired(),
-                user.isCredentialsNonExpired(),
-                user.isAccountNonLocked(),
+                //              user.isEnabled(),
+                //              user.isAccountNonExpired(),
+                //              user.isCredentialsNonExpired(),
+                //              user.isAccountNonLocked(),
                 getAuthorities(user));
     }
 
 
     public Collection<? extends GrantedAuthority> getAuthorities(User user) {
+        Set<GrantedAuthority> setAuths = new HashSet<GrantedAuthority>();
+        List<Authority> auths = user.getAuthorities();
 
-        String roles = StringUtils.collectionToCommaDelimitedString(user.getAuthorities());
-        // TODO: If the user has no role, then what? Probably have to give anonymous role,
-        // but this is something that should be logged as ERROR
-        //logger.error("User " + user.getUsername() + " has no defined roles.");
-        return AuthorityUtils.commaSeparatedStringToAuthorityList(roles);
+        for (Authority auth : auths) {
+// HERE!!!!            setAuths.add(new SimpleGrantedAuthority(auth.getName()));
+        }
+
+        List<GrantedAuthority> result = new ArrayList<GrantedAuthority>(setAuths);
+        return result;
     }
 
     public User registerNewUser(User user) throws UserExistsException {

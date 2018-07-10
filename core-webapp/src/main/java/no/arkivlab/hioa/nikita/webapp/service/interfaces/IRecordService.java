@@ -1,6 +1,7 @@
 package no.arkivlab.hioa.nikita.webapp.service.interfaces;
 
 
+import nikita.model.noark5.v4.DocumentDescription;
 import nikita.model.noark5.v4.Record;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,11 +16,16 @@ public interface IRecordService {
 	// -- All CREATE operations
 
 	Record save(Record record);
+	DocumentDescription createDocumentDescriptionAssociatedWithRecord(String recordSystemId,
+																	  DocumentDescription documentDescription);
+
+    List<Record> findRecordByOwnerPaginated(Integer top, Integer skip);
 
 	// -- All READ operations
 
-	Iterable<Record> findAll();
-	List<Record> findAll(Sort sort);
+    List<Record> findAll();
+
+    List<Record> findAll(Sort sort);
 	Page<Record> findAll(Pageable pageable);
 
 	// id

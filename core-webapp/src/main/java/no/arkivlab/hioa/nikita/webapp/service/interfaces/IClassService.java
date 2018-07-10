@@ -15,10 +15,12 @@ public interface IClassService {
 	// -- All CREATE operations
 
 	Class save(Class klass);
+	Class createClassAssociatedWithClass(String classSystemId, Class klass);
 
 	// -- All READ operations
+	List<Class> findClassByOwnerPaginated(Integer top, Integer skip);
 
-	Iterable<Class> findAll();
+	List<Class> findAll();
 	List<Class> findAll(Sort sort);
 	Page<Class> findAll(Pageable pageable);
 

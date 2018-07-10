@@ -2,6 +2,8 @@ package no.arkivlab.hioa.nikita.webapp.service.interfaces;
 
 
 import nikita.model.noark5.v4.Fonds;
+import nikita.model.noark5.v4.FondsCreator;
+import nikita.model.noark5.v4.Series;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -11,14 +13,20 @@ import java.util.List;
 
 public interface IFondsService  {
 
-    // -- All CREATE operations
+    Fonds handleUpdate(String systemId, Long version, Fonds incomingFonds);
 
-    Fonds save(Fonds fonds);
-    Fonds saveWithOwner(Fonds fonds, String owner);
+    // -- All CREATE operations
+    Fonds createNewFonds(Fonds fonds);
+    Series createSeriesAssociatedWithFonds(String fondsSystemId, Series series);
+    Fonds createFondsAssociatedWithFonds(String parentFondsSystemId, Fonds childFonds);
+
+    FondsCreator createFondsCreatorAssociatedWithFonds(String fondsSystemId, FondsCreator fondsCreator);
+
+    List<Fonds> findFondsByOwnerPaginated(Integer top, Integer skip);
 
     // -- All READ operations
 
-    Iterable<Fonds> findAll();
+    List<Fonds> findAll();
     List<Fonds> findAll(Sort sort);
     Page<Fonds> findAll(Pageable pageable);
 
@@ -113,4 +121,6 @@ public interface IFondsService  {
     List<Fonds> findByOwnedBy(String ownedBy, Sort sort);
     Page<Fonds> findByOwnedBy(String ownedBy, Pageable pageable);
 
+    // -- All UPDATE operations
+    Fonds updateFonds(Fonds fonds);
 }

@@ -1,9 +1,15 @@
 package no.arkivlab.hioa.nikita.webapp.service.impl;
 
+import nikita.model.noark5.v4.BasicRecord;
 import nikita.model.noark5.v4.File;
+import nikita.model.noark5.v4.Record;
 import nikita.repository.n5v4.IFileRepository;
 import no.arkivlab.hioa.nikita.webapp.service.interfaces.IFileService;
-import no.arkivlab.hioa.nikita.webapp.util.validation.Utils;
+import no.arkivlab.hioa.nikita.webapp.service.interfaces.IRecordService;
+import no.arkivlab.hioa.nikita.webapp.util.NoarkUtils;
+import no.arkivlab.hioa.nikita.webapp.util.exceptions.NoarkEntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,44 +18,79 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
+
+import static nikita.config.Constants.INFO_CANNOT_FIND_OBJECT;
 
 @Service
 @Transactional
 public class FileService implements IFileService {
 
+    private static final Logger logger = LoggerFactory.getLogger(FileService.class);
+
+    @Autowired
+    IRecordService recordService;
+
     @Autowired
     IFileRepository fileRepository;
+
+    @Autowired
+    EntityManager entityManager;
+
+    //@Value("${nikita-noark5-core.pagination.maxPageSize}")
+    Integer maxPageSize = new Integer(10);
 
     public FileService() {
     }
 
-    // All CREATE operations
-    public File save(File file){
-        String username = (String) SecurityContextHolder.getContext().getAuthentication().getName();
-
-        if (!Utils.checkDocumentMediumValid(file.getDocumentMedium())) {
-            // throw an error! Something is wrong. Either null or incorrect value
-        }
-
-        file.setSystemId(UUID.randomUUID().toString());
-        file.setCreatedDate(new Date());
-        file.setOwnedBy(username);
-        file.setCreatedBy(username);
-        file.setDeleted(false);
-
-        // Have to handle referenceToFonds. If it is not set do not allow persisit
-        // throw illegalstructure exception
-
-        // How do handle referenceToPrecusor? Update the entire object?? No patch?
-
+    @Override
+    public File createFile(File file) {
+        NoarkUtils.NoarkEntity.Create.checkDocumentMediumValid(file);
+        NoarkUtils.NoarkEntity.Create.setNoarkEntityValues(file);
+        NoarkUtils.NoarkEntity.Create.setFinaliseEntityValues(file);
         return fileRepository.save(file);
     }
 
+    @Override
+    public Record createRecordAssociatedWithFile(String fileSystemId, Record record) {
+        Record persistedRecord = null;
+        File file = fileRepository.findBySystemId(fileSystemId);
+        if (file == null) {
+            String info = INFO_CANNOT_FIND_OBJECT + " File, using fileSystemId " + fileSystemId;
+            logger.info(info) ;
+            throw new NoarkEntityNotFoundException(info);
+        }
+        else {
+            record.setReferenceFile(file);
+            persistedRecord = recordService.save(record);
+        }
+        return persistedRecord;        
+    }
+
+    @Override
+    public BasicRecord createBasicRecordAssociatedWithFile(String fileSystemId, BasicRecord basicRecord) {
+        BasicRecord persistedBasicRecord = null;
+        File file = fileRepository.findBySystemId(fileSystemId);
+        if (file == null) {
+            String info = INFO_CANNOT_FIND_OBJECT + " File, using fileSystemId " + fileSystemId;
+            logger.info(info) ;
+            throw new NoarkEntityNotFoundException(info);
+        }
+        else {
+            basicRecord.setReferenceFile(file);
+            persistedBasicRecord = (BasicRecord) recordService.save(basicRecord);
+        }
+        return persistedBasicRecord;
+    }
+
     // All READ operations
-    public Iterable<File> findAll() {
+    public List<File> findAll() {
         return fileRepository.findAll();
     }
 
@@ -377,8 +418,27 @@ public class FileService implements IFileService {
         return fileRepository.save(file);
     }
 
+    // All READ operations
+    @Override
+    public List<File> findFileByOwnerPaginated(Integer top, Integer skip) {
 
-    // All DELETE operations
+        if (top == null || top > maxPageSize) {
+            top = maxPageSize;
+        }
+        if (skip == null) {
+            skip = 0;
+        }
 
+        String loggedInUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<File> criteriaQuery = criteriaBuilder.createQuery(File.class);
+        Root<File> from = criteriaQuery.from(File.class);
+        CriteriaQuery<File> select = criteriaQuery.select(from);
 
+        criteriaQuery.where(criteriaBuilder.equal(from.get("ownedBy"), loggedInUser));
+        TypedQuery<File> typedQuery = entityManager.createQuery(select);
+        typedQuery.setFirstResult(skip);
+        typedQuery.setMaxResults(maxPageSize);
+        return typedQuery.getResultList();
+    }
 }

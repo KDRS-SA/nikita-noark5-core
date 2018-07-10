@@ -1,21 +1,24 @@
 package nikita.model.noark5.v4;
 
+import nikita.model.noark5.v4.interfaces.entities.INoarkSystemIdEntity;
+import nikita.model.noark5.v4.interfaces.entities.IPrecedenceEntity;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import static nikita.config.N5ResourceMappings.PRECEDENCE;
 
 @Entity
 @Table(name = "precedence")
 // Enable soft delete of Precedence
 @SQLDelete(sql="UPDATE precedence SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class Precedence implements Serializable {
+public class Precedence implements IPrecedenceEntity, INoarkSystemIdEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -25,11 +28,18 @@ public class Precedence implements Serializable {
     protected Long id;
 
     /**
+     * M001 - systemID (xs:string)
+     */
+    @Column(name = "system_id", unique = true)
+    @Audited
+    protected String systemId;
+
+    /**
      * M111 - presedensDato (xs:date)
      */
     @Column(name = "precedence_date")
     @Audited
-    protected String precedenceDate;
+    protected Date precedenceDate;
 
     /**
      * M600 - opprettetDato (xs:dateTime)
@@ -107,23 +117,22 @@ public class Precedence implements Serializable {
     @Column(name = "precedence_status")
     @Audited
     protected String precedenceStatus;
-
+    @Column(name = "owned_by")
+    @Audited
+    protected String ownedBy;
+    @Version
+    @Column(name = "version")
+    protected Long version;
+    // Link to RegistryEntry
+    @ManyToMany(mappedBy = "referencePrecedence")
+    protected Set<RegistryEntry> referenceRegistryEntry = new HashSet<RegistryEntry >();
+    // Links to CaseFiles
+    @ManyToMany(mappedBy = "referencePrecedence")
+    protected Set<CaseFile> referenceCaseFile = new HashSet<CaseFile>();
     // Used for soft delete.
     @Column(name = "deleted")
     @Audited
     private Boolean deleted;
-
-    @Column(name = "owned_by")
-    @Audited
-    protected String ownedBy;
-
-    // Link to RegistryEntry
-    @ManyToMany(mappedBy = "referencePrecedence")
-    protected Set<RegistryEntry> referenceRegistryEntry = new HashSet<RegistryEntry >();
-
-    // Links to CaseFiles
-    @ManyToMany(mappedBy = "referencePrecedence")
-    protected Set<CaseFile> referenceCaseFile = new HashSet<CaseFile>();
 
     public Long getId() {
         return id;
@@ -133,11 +142,19 @@ public class Precedence implements Serializable {
         this.id = id;
     }
 
-    public String getPrecedenceDate() {
+    public String getSystemId() {
+        return systemId;
+    }
+
+    public void setSystemId(String systemId) {
+        this.systemId = systemId;
+    }
+
+    public Date getPrecedenceDate() {
         return precedenceDate;
     }
 
-    public void setPrecedenceDate(String precedenceDate) {
+    public void setPrecedenceDate(Date precedenceDate) {
         this.precedenceDate = precedenceDate;
     }
 
@@ -245,6 +262,19 @@ public class Precedence implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    @Override
+    public String getBaseTypeName() {
+        return PRECEDENCE;
+    }
+
     public Set<RegistryEntry> getReferenceRegistryEntry() {
         return referenceRegistryEntry;
     }
@@ -276,6 +306,7 @@ public class Precedence implements Serializable {
                 ", createdBy='" + createdBy + '\'' +
                 ", createdDate=" + createdDate +
                 ", precedenceDate='" + precedenceDate + '\'' +
+                ", version='" + version + '\'' +
                 ", id=" + id +
                 '}';
     }

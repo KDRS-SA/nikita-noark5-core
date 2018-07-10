@@ -55,8 +55,8 @@ spring:
             hibernate.search.default.indexBase: target/lucene/indexes
             # Enable these to support elasticsearch, but wait until out of beta!
             hibernate.search.default.indexmanager: elasticsearch
-            hibernate.search.default.elasticsearch.index_schema_management_strategy: CREATE_DELETE # on applicatoin startup, create new index from db
-            hibernate.search.default.elasticsearch.host: https://127.0.0.1:9876
+            hibernate.search.default.elasticsearch.index_schema_management_strategy: CREATE # on applicatoin startup, create new index from db
+            hibernate.search.default.elasticsearch.host: https://localhost:9876
 
     mail:
         host: localhost
@@ -68,6 +68,14 @@ spring:
     output:
         ansi:
           enabled: ALWAYS
+jwt:
+  header: Authorization
+  secret: mySecret
+  expiration: 604800
+  route:
+    authentication:
+      path: auth
+      refresh: refresh
 server:
     contextPath: /noark5v4
     port: 8092
@@ -88,8 +96,10 @@ info:
 # ===================================================================
 
 nikita-noark5-core:
+    pagination:
+      _maxPageSize: 10
     mail:
-        from: nikita@nikita.arkivlab.no
+        from: nikita@example.com
     metrics: # DropWizard Metrics configuration, used by MetricsConfiguration
         jmx.enabled: true
         spark:
@@ -119,6 +129,16 @@ nikita-noark5-core:
          entityId: no:hioa:nikita:noark5
 
          idPUrl: http://nikita.hioa.no
-         idPMetadata: https://idp-test.feide.no/simplesaml/saml2/idp/metadata.php
+         idPMetadata: https://idp-test.feide.no/simplesaml/saml2/idp/administration.php
     server:
          name: nikita.hioa.no
+         port: 8092
+         address: localhost
+         protocol: http # or https
+    details:
+        conformity-levels:
+             official: arkivstruktur, sakarkiv
+             non-official: gui, import-api
+    storage:
+        location: /tmp/dokumenter
+    checksumAlgorithm: SHA-256

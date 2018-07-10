@@ -1,8 +1,15 @@
 package nikita.model.noark5.v4;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import nikita.model.noark5.v4.interfaces.ICaseParty;
+import nikita.model.noark5.v4.interfaces.IPrecedence;
+import nikita.model.noark5.v4.interfaces.entities.INikitaEntity;
+import nikita.util.deserialisers.CaseFileDeserializer;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import org.hibernate.envers.Audited;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -10,12 +17,20 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import static nikita.config.N5ResourceMappings.CASE_FILE;
+
+
+// TODO: You are missing M209 referanseSekundaerKlassifikasjon
+
+
 @Entity
 @Table(name = "case_file")
 // Enable soft delete of CaseFile
 @SQLDelete(sql="UPDATE case_file SET deleted = true WHERE id = ?")
 @Where(clause="deleted <> true")
-public class CaseFile extends File implements Serializable {
+@Indexed(index = "case_file")
+@JsonDeserialize(using = CaseFileDeserializer.class)
+public class CaseFile extends File implements Serializable, INikitaEntity, IPrecedence, ICaseParty {
 
     private static final long serialVersionUID = 1L;
 
@@ -24,6 +39,7 @@ public class CaseFile extends File implements Serializable {
      */
     @Column(name = "case_year")
     @Audited
+    @Field
     protected Integer caseYear;
 
     /**
@@ -31,6 +47,7 @@ public class CaseFile extends File implements Serializable {
      */
     @Column(name = "case_sequence_number")
     @Audited
+    @Field
     protected Integer caseSequenceNumber;
 
     /**
@@ -39,6 +56,7 @@ public class CaseFile extends File implements Serializable {
     @Column(name = "case_date")
     @Temporal(TemporalType.DATE)
     @Audited
+    @Field
     protected Date caseDate;
 
     /**
@@ -46,6 +64,7 @@ public class CaseFile extends File implements Serializable {
      */
     @Column(name = "administrative_unit")
     @Audited
+    @Field
     protected String administrativeUnit;
 
     /**
@@ -53,6 +72,7 @@ public class CaseFile extends File implements Serializable {
      */
     @Column(name = "case_responsible")
     @Audited
+    @Field
     protected String caseResponsible;
 
     /**
@@ -60,6 +80,7 @@ public class CaseFile extends File implements Serializable {
      */
     @Column(name = "records_management_unit")
     @Audited
+    @Field
     protected String recordsManagementUnit;
 
     /**
@@ -67,6 +88,7 @@ public class CaseFile extends File implements Serializable {
      */
     @Column(name = "case_status")
     @Audited
+    @Field
     protected String caseStatus;
 
     /**
@@ -83,16 +105,10 @@ public class CaseFile extends File implements Serializable {
     @Column(name = "loaned_to")
     @Audited
     protected String loanedTo;
-
-    // Used for soft delete.
-    @Column(name = "deleted")
-    @Audited
-    private Boolean deleted;
-
     @Column(name = "owned_by")
     @Audited
+    @Field
     protected String ownedBy;
-
     // Links to CaseParty
     @ManyToMany
     @JoinTable(name = "case_file_case_file_party",
@@ -102,7 +118,6 @@ public class CaseFile extends File implements Serializable {
                     referencedColumnName = "pk_case_party_id"))
 
     protected Set<CaseParty> referenceCaseParty = new HashSet<CaseParty>();
-
     // Links to Precedence
     @ManyToMany
     @JoinTable(name = "case_file_precedence",
@@ -112,6 +127,11 @@ public class CaseFile extends File implements Serializable {
                     referencedColumnName = "pk_precedence_id"))
 
     protected Set<Precedence> referencePrecedence = new HashSet<Precedence>();
+    // Used for soft delete.
+    @Column(name = "deleted")
+    @Audited
+    @Field
+    private Boolean deleted;
 
     public Integer getCaseYear() {
         return caseYear;
@@ -201,12 +221,25 @@ public class CaseFile extends File implements Serializable {
         this.ownedBy = ownedBy;
     }
 
+    @Override
+    public String getBaseTypeName() {
+        return CASE_FILE;
+    }
+
     public Set<CaseParty> getReferenceCaseParty() {
         return referenceCaseParty;
     }
 
     public void setReferenceCaseParty(Set<CaseParty> referenceCaseParty) {
         this.referenceCaseParty = referenceCaseParty;
+    }
+
+    public Set<Precedence> getReferencePrecedence() {
+        return referencePrecedence;
+    }
+
+    public void setReferencePrecedence(Set<Precedence> referencePrecedence) {
+        this.referencePrecedence = referencePrecedence;
     }
 
     @Override
